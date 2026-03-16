@@ -1,6 +1,6 @@
 // src/core/agent-overlay.test.ts
 import { createAgentOverlay } from './agent-overlay'
-import type { LLMProvider, AnalysisResult, AgentOverlayOptions } from './types'
+import type { LLMProvider, AnalysisResult } from './types'
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => ({
@@ -16,7 +16,7 @@ function createMockChart() {
   const el = document.createElement('div')
   el.style.position = 'relative'
   document.body.appendChild(el)
-  el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 } as DOMRect)
+  el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 }) as DOMRect
 
   return {
     el,
@@ -124,7 +124,9 @@ describe('createAgentOverlay', () => {
         expect(provider.analyze).toHaveBeenCalled()
       })
       await vi.waitFor(() => {
-        expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ explanation: 'Support at 100' }))
+        expect(onComplete).toHaveBeenCalledWith(
+          expect.objectContaining({ explanation: 'Support at 100' }),
+        )
       })
     }
 

@@ -1,7 +1,5 @@
 // src/core/types.ts
 
-import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts'
-
 // --- Time ---
 
 /** Matches Lightweight Charts HorzScaleItem — supports both formats */
@@ -50,19 +48,12 @@ export interface AnalysisResult {
 // --- Provider ---
 
 export interface LLMProvider {
-  analyze(
-    context: ChartContext,
-    prompt: string,
-    signal?: AbortSignal,
-  ): Promise<AnalysisResult>
+  analyze(context: ChartContext, prompt: string, signal?: AbortSignal): Promise<AnalysisResult>
 }
 
 // --- Data Accessor ---
 
-export type DataAccessor = (timeRange: {
-  from: TimeValue
-  to: TimeValue
-}) => OHLCData[]
+export type DataAccessor = (timeRange: { from: TimeValue; to: TimeValue }) => OHLCData[]
 
 // --- Options ---
 
@@ -82,7 +73,7 @@ export interface AgentOverlayOptions {
 export interface AgentOverlayEventMap {
   'analyze-start': () => void
   'analyze-complete': (result: AnalysisResult) => void
-  'error': (error: Error) => void
+  error: (error: Error) => void
 }
 
 // --- Return Value ---
@@ -90,8 +81,5 @@ export interface AgentOverlayEventMap {
 export interface AgentOverlay {
   destroy(): void
   clearOverlays(): void
-  on<K extends keyof AgentOverlayEventMap>(
-    event: K,
-    handler: AgentOverlayEventMap[K],
-  ): () => void
+  on<K extends keyof AgentOverlayEventMap>(event: K, handler: AgentOverlayEventMap[K]): () => void
 }

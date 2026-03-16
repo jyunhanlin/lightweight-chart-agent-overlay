@@ -2,12 +2,7 @@
 import type {
   TimeValue,
   OHLCData,
-  ChartContext,
   AnalysisResult,
-  LLMProvider,
-  AgentOverlayOptions,
-  AgentOverlay,
-  DataAccessor,
   PriceLineAction,
   MarkerAction,
 } from './types'
