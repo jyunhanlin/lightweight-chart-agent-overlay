@@ -4,9 +4,7 @@ import type { ChartContext } from '../core/types'
 
 const MOCK_CONTEXT: ChartContext = {
   timeRange: { from: 1000, to: 3000 },
-  data: [
-    { time: 1000, open: 100, high: 110, low: 90, close: 105 },
-  ],
+  data: [{ time: 1000, open: 100, high: 110, low: 90, close: 105 }],
 }
 
 describe('createOpenAIProvider', () => {
@@ -24,9 +22,10 @@ describe('createOpenAIProvider', () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+        }),
     })
 
     const provider = createOpenAIProvider({ apiKey: 'test-key' })
@@ -61,9 +60,10 @@ describe('createOpenAIProvider', () => {
   it('forwards AbortSignal to fetch', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        choices: [{ message: { content: '{}' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{}' } }],
+        }),
     })
 
     const controller = new AbortController()
@@ -79,9 +79,10 @@ describe('createOpenAIProvider', () => {
   it('handles malformed JSON from LLM gracefully', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        choices: [{ message: { content: 'not valid json {{{' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: 'not valid json {{{' } }],
+        }),
     })
 
     const provider = createOpenAIProvider({ apiKey: 'test-key' })

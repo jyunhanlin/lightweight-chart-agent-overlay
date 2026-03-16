@@ -28,9 +28,10 @@ describe('createAnthropicProvider', () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        content: [{ type: 'text', text: JSON.stringify(mockResponse) }],
-      }),
+      json: () =>
+        Promise.resolve({
+          content: [{ type: 'text', text: JSON.stringify(mockResponse) }],
+        }),
     })
 
     const provider = createAnthropicProvider({ apiKey: 'test-key' })
@@ -68,9 +69,10 @@ describe('createAnthropicProvider', () => {
   it('forwards AbortSignal to fetch', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        content: [{ type: 'text', text: '{}' }],
-      }),
+      json: () =>
+        Promise.resolve({
+          content: [{ type: 'text', text: '{}' }],
+        }),
     })
 
     const controller = new AbortController()
@@ -86,9 +88,10 @@ describe('createAnthropicProvider', () => {
   it('handles malformed JSON from LLM gracefully', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        content: [{ type: 'text', text: 'not valid json {{{' }],
-      }),
+      json: () =>
+        Promise.resolve({
+          content: [{ type: 'text', text: 'not valid json {{{' }],
+        }),
     })
 
     const provider = createAnthropicProvider({ apiKey: 'test-key' })

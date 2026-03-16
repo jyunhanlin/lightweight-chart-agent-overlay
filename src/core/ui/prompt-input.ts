@@ -1,7 +1,10 @@
 // src/core/ui/prompt-input.ts
 type Theme = 'light' | 'dark'
 
-const THEME_STYLES: Record<Theme, { bg: string; border: string; text: string; placeholder: string }> = {
+const THEME_STYLES: Record<
+  Theme,
+  { bg: string; border: string; text: string; placeholder: string }
+> = {
   dark: { bg: '#1e1e2e', border: '#444', text: '#e0e0e0', placeholder: '#888' },
   light: { bg: '#ffffff', border: '#ccc', text: '#1a1a1a', placeholder: '#999' },
 }
@@ -29,8 +32,13 @@ export class PromptInput {
     input.placeholder = 'Ask about this range...'
     input.style.cssText = `background:transparent;border:none;outline:none;color:${s.text};font-size:13px;width:260px;font-family:inherit;`
     input.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { const value = input.value.trim(); if (value) this.onSubmit?.(value) }
-      else if (e.key === 'Escape') { this.hide(); this.onCancel?.() }
+      if (e.key === 'Enter') {
+        const value = input.value.trim()
+        if (value) this.onSubmit?.(value)
+      } else if (e.key === 'Escape') {
+        this.hide()
+        this.onCancel?.()
+      }
     })
     wrapper.appendChild(input)
     this.container.appendChild(wrapper)
@@ -38,13 +46,25 @@ export class PromptInput {
     input.focus()
   }
 
-  hide(): void { if (this.wrapper) { this.wrapper.remove(); this.wrapper = null } }
+  hide(): void {
+    if (this.wrapper) {
+      this.wrapper.remove()
+      this.wrapper = null
+    }
+  }
 
   setLoading(loading: boolean): void {
     if (!this.wrapper) return
     const input = this.wrapper.querySelector('input')
-    if (input) { input.disabled = loading; input.placeholder = loading ? 'Analyzing...' : 'Ask about this range...' }
+    if (input) {
+      input.disabled = loading
+      input.placeholder = loading ? 'Analyzing...' : 'Ask about this range...'
+    }
   }
 
-  destroy(): void { this.hide(); this.onSubmit = null; this.onCancel = null }
+  destroy(): void {
+    this.hide()
+    this.onSubmit = null
+    this.onCancel = null
+  }
 }

@@ -18,7 +18,9 @@ function mapPriceLineOptions(action: PriceLineAction): Record<string, unknown> {
     price: action.price,
     ...(action.color != null && { color: action.color }),
     ...(action.lineWidth != null && { lineWidth: action.lineWidth }),
-    ...(action.lineStyle != null && { lineStyle: LINE_STYLE_MAP[action.lineStyle] ?? LineStyle.Solid }),
+    ...(action.lineStyle != null && {
+      lineStyle: LINE_STYLE_MAP[action.lineStyle] ?? LineStyle.Solid,
+    }),
     ...(action.title != null && { title: action.title }),
     axisLabelVisible: true,
   }

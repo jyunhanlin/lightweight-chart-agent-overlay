@@ -95,11 +95,7 @@ export function createAgentOverlay(
         throw new Error('No selection range available')
       }
 
-      const context = buildChartContext(
-        seriesData,
-        currentRange as never,
-        options.dataAccessor,
-      )
+      const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
 
       const rawResult = await options.provider.analyze(context, prompt, abortController.signal)
       const result = validateResult(rawResult)
@@ -110,7 +106,7 @@ export function createAgentOverlay(
         const fromX = chart.timeScale().timeToCoordinate(currentRange.from)
         explanationPopup.show(result.explanation, {
           x: (fromX ?? 100) as number,
-          y: (options.ui?.promptPlacement === 'bottom' ? 8 : chartEl.clientHeight - 220),
+          y: options.ui?.promptPlacement === 'bottom' ? 8 : chartEl.clientHeight - 220,
         })
       }
 

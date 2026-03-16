@@ -29,7 +29,9 @@ vi.mock('lightweight-charts', () => ({
 }))
 
 describe('OverlayRenderer', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
   it('renders price lines from AnalysisResult', () => {
     const series = createMockSeries()
@@ -51,7 +53,9 @@ describe('OverlayRenderer', () => {
     const series = createMockSeries()
     const renderer = new OverlayRenderer(series as never)
     const result: AnalysisResult = {
-      markers: [{ time: 1000, position: 'aboveBar', shape: 'arrowDown', color: 'red', text: 'Sell' }],
+      markers: [
+        { time: 1000, position: 'aboveBar', shape: 'arrowDown', color: 'red', text: 'Sell' },
+      ],
     }
     renderer.render(result)
     expect(mockSetMarkers).toHaveBeenCalledWith([

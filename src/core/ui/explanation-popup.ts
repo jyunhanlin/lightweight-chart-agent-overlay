@@ -1,7 +1,10 @@
 // src/core/ui/explanation-popup.ts
 type Theme = 'light' | 'dark'
 
-const EXPLANATION_THEME: Record<Theme, { bg: string; border: string; text: string; closeColor: string }> = {
+const EXPLANATION_THEME: Record<
+  Theme,
+  { bg: string; border: string; text: string; closeColor: string }
+> = {
   dark: { bg: '#1e1e2e', border: '#444', text: '#e0e0e0', closeColor: '#888' },
   light: { bg: '#ffffff', border: '#ccc', text: '#1a1a1a', closeColor: '#666' },
 }
@@ -15,7 +18,9 @@ export class ExplanationPopup {
   constructor(container: HTMLElement, theme: Theme = 'dark') {
     this.container = container
     this.theme = theme
-    this.handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') this.hide() }
+    this.handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.hide()
+    }
   }
 
   show(text: string, position: { x: number; y: number }): void {
@@ -39,7 +44,15 @@ export class ExplanationPopup {
     document.addEventListener('keydown', this.handleEscape)
   }
 
-  hide(): void { if (this.wrapper) { this.wrapper.remove(); this.wrapper = null; document.removeEventListener('keydown', this.handleEscape) } }
+  hide(): void {
+    if (this.wrapper) {
+      this.wrapper.remove()
+      this.wrapper = null
+      document.removeEventListener('keydown', this.handleEscape)
+    }
+  }
 
-  destroy(): void { this.hide() }
+  destroy(): void {
+    this.hide()
+  }
 }

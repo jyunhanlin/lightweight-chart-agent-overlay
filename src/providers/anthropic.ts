@@ -28,7 +28,11 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
 
   return {
-    async analyze(context: ChartContext, prompt: string, signal?: AbortSignal): Promise<AnalysisResult> {
+    async analyze(
+      context: ChartContext,
+      prompt: string,
+      signal?: AbortSignal,
+    ): Promise<AnalysisResult> {
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
       const response = await fetch(API_URL, {

@@ -20,12 +20,12 @@ const mockProvider: LLMProvider = {
 }
 
 describe('useAgentOverlay', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
   it('returns expected shape', () => {
-    const { result } = renderHook(() =>
-      useAgentOverlay(null, null, { provider: mockProvider }),
-    )
+    const { result } = renderHook(() => useAgentOverlay(null, null, { provider: mockProvider }))
     expect(result.current.clearOverlays).toBeInstanceOf(Function)
     expect(result.current.isAnalyzing).toBe(false)
     expect(result.current.error).toBeNull()

@@ -1,11 +1,5 @@
 // src/core/types.test.ts
-import type {
-  TimeValue,
-  OHLCData,
-  AnalysisResult,
-  PriceLineAction,
-  MarkerAction,
-} from './types'
+import type { TimeValue, OHLCData, AnalysisResult, PriceLineAction, MarkerAction } from './types'
 
 describe('types', () => {
   it('TimeValue accepts number and string', () => {

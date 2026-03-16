@@ -3,8 +3,13 @@ import { ExplanationPopup } from './explanation-popup'
 
 describe('ExplanationPopup', () => {
   let container: HTMLElement
-  beforeEach(() => { container = document.createElement('div'); document.body.appendChild(container) })
-  afterEach(() => { document.body.removeChild(container) })
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+  afterEach(() => {
+    document.body.removeChild(container)
+  })
 
   it('show() displays explanation text', () => {
     const popup = new ExplanationPopup(container)

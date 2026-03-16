@@ -16,7 +16,10 @@ interface AttachedParams {
 }
 
 interface PaneRenderer {
-  draw(target: { context: CanvasRenderingContext2D; mediaSize: { width: number; height: number } }): void
+  draw(target: {
+    context: CanvasRenderingContext2D
+    mediaSize: { width: number; height: number }
+  }): void
 }
 
 interface PaneView {

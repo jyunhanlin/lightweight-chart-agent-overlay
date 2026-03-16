@@ -3,8 +3,13 @@ import { PromptInput } from './prompt-input'
 
 describe('PromptInput', () => {
   let container: HTMLElement
-  beforeEach(() => { container = document.createElement('div'); document.body.appendChild(container) })
-  afterEach(() => { document.body.removeChild(container) })
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+  afterEach(() => {
+    document.body.removeChild(container)
+  })
 
   it('show() adds input element to container', () => {
     const input = new PromptInput(container)

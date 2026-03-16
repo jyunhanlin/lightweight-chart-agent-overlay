@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createAgentOverlay } from '../core/agent-overlay'
-import type {
-  AgentOverlay,
-  AgentOverlayOptions,
-  AnalysisResult,
-} from '../core/types'
+import type { AgentOverlay, AgentOverlayOptions, AnalysisResult } from '../core/types'
 
 interface ChartLike {
   timeScale(): unknown
@@ -40,13 +36,31 @@ export function useAgentOverlay(
     if (!chart || !series) return
     const agent = createAgentOverlay(chart as never, series as never, options)
     agentRef.current = agent
-    const unsubStart = agent.on('analyze-start', () => { setIsAnalyzing(true); setError(null) })
-    const unsubComplete = agent.on('analyze-complete', (result) => { setIsAnalyzing(false); setLastResult(result) })
-    const unsubError = agent.on('error', (err) => { setIsAnalyzing(false); setError(err) })
-    return () => { unsubStart(); unsubComplete(); unsubError(); agent.destroy(); agentRef.current = null }
+    const unsubStart = agent.on('analyze-start', () => {
+      setIsAnalyzing(true)
+      setError(null)
+    })
+    const unsubComplete = agent.on('analyze-complete', (result) => {
+      setIsAnalyzing(false)
+      setLastResult(result)
+    })
+    const unsubError = agent.on('error', (err) => {
+      setIsAnalyzing(false)
+      setError(err)
+    })
+    return () => {
+      unsubStart()
+      unsubComplete()
+      unsubError()
+      agent.destroy()
+      agentRef.current = null
+    }
   }, [chart, series, options.provider])
 
-  const clearOverlays = useCallback(() => { agentRef.current?.clearOverlays(); setLastResult(null) }, [])
+  const clearOverlays = useCallback(() => {
+    agentRef.current?.clearOverlays()
+    setLastResult(null)
+  }, [])
 
   return { clearOverlays, isAnalyzing, error, lastResult }
 }
