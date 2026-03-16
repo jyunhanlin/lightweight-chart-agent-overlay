@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lightweight Chart Agent Overlay — Demo</title>
+  <style>
+    body { margin: 0; background: #131722; font-family: system-ui; }
+    #chart { width: 100vw; height: 100vh; position: relative; }
+    .instructions {
+      position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+      color: #888; font-size: 13px; z-index: 10; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="instructions">Drag to select a range, then type your question</div>
+  <div id="chart"></div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
