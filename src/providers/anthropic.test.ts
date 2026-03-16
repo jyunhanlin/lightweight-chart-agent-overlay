@@ -26,7 +26,7 @@ describe('createAnthropicProvider', () => {
       priceLines: [{ price: 100, title: 'Support' }],
     }
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         content: [{ type: 'text', text: JSON.stringify(mockResponse) }],
@@ -53,7 +53,7 @@ describe('createAnthropicProvider', () => {
   })
 
   it('throws on non-ok response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       statusText: 'Unauthorized',
@@ -66,7 +66,7 @@ describe('createAnthropicProvider', () => {
   })
 
   it('forwards AbortSignal to fetch', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         content: [{ type: 'text', text: '{}' }],
@@ -84,7 +84,7 @@ describe('createAnthropicProvider', () => {
   })
 
   it('handles malformed JSON from LLM gracefully', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         content: [{ type: 'text', text: 'not valid json {{{' }],

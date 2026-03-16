@@ -81,7 +81,7 @@ describe('OverlayRenderer', () => {
         { price: 300, lineStyle: 'dotted' },
       ],
     })
-    const calls = series.createPriceLine.mock.calls
+    const calls = series.createPriceLine.mock.calls as Array<[Record<string, unknown>]>
     expect(calls[0][0].lineStyle).toBe(0)
     expect(calls[1][0].lineStyle).toBe(1)
     expect(calls[2][0].lineStyle).toBe(3)

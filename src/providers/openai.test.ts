@@ -22,7 +22,7 @@ describe('createOpenAIProvider', () => {
   it('calls OpenAI chat completions API', async () => {
     const mockResponse = { explanation: 'Bearish trend' }
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         choices: [{ message: { content: JSON.stringify(mockResponse) } }],
@@ -46,7 +46,7 @@ describe('createOpenAIProvider', () => {
   })
 
   it('throws on non-ok response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       statusText: 'Unauthorized',
@@ -59,7 +59,7 @@ describe('createOpenAIProvider', () => {
   })
 
   it('forwards AbortSignal to fetch', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         choices: [{ message: { content: '{}' } }],
@@ -77,7 +77,7 @@ describe('createOpenAIProvider', () => {
   })
 
   it('handles malformed JSON from LLM gracefully', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         choices: [{ message: { content: 'not valid json {{{' } }],
