@@ -1,0 +1,15 @@
+{
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "overrides": {
+    "files": ["**/*.test.ts"],
+    "rules": {
+      "unicorn/consistent-function-scoping": "off",
+      "no-extraneous-class": "off"
+    }
+  },
+  "ignorePatterns": ["dist", "coverage"]
+}
