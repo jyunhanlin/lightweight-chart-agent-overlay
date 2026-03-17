@@ -139,7 +139,7 @@ export class PromptInput {
       input.disabled = loading
     }
     if (hint) {
-      hint.style.display = loading ? 'none' : ''
+      hint.style.visibility = loading ? 'hidden' : 'visible'
     }
     if (progress) {
       progress.style.display = loading ? 'block' : 'none'
