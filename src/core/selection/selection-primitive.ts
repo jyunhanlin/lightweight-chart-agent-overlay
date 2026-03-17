@@ -15,11 +15,17 @@ interface AttachedParams {
   requestUpdate: () => void
 }
 
+interface MediaCoordinateSpace {
+  context: CanvasRenderingContext2D
+  mediaSize: { width: number; height: number }
+}
+
+interface RenderTarget {
+  useMediaCoordinateSpace(callback: (space: MediaCoordinateSpace) => void): void
+}
+
 interface PaneRenderer {
-  draw(target: {
-    context: CanvasRenderingContext2D
-    mediaSize: { width: number; height: number }
-  }): void
+  draw(target: RenderTarget): void
 }
 
 interface PaneView {
@@ -80,11 +86,11 @@ export class SelectionPrimitive {
       {
         renderer() {
           return {
-            draw(target) {
-              const ctx = target.context
-              const height = target.mediaSize.height
-              ctx.fillStyle = HIGHLIGHT_COLOR
-              ctx.fillRect(x1, 0, x2 - x1, height)
+            draw(target: RenderTarget) {
+              target.useMediaCoordinateSpace(({ context, mediaSize }) => {
+                context.fillStyle = HIGHLIGHT_COLOR
+                context.fillRect(x1, 0, x2 - x1, mediaSize.height)
+              })
             },
           }
         },
