@@ -23,12 +23,12 @@ export class ExplanationPopup {
     }
   }
 
-  show(text: string, position: { x: number; y: number }): void {
+  show(text: string): void {
     this.hide()
     const s = EXPLANATION_THEME[this.theme]
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-explanation', '')
-    wrapper.style.cssText = `position:absolute;left:${position.x}px;top:${position.y}px;z-index:1000;background:${s.bg};border:1px solid ${s.border};border-radius:6px;padding:8px 12px;max-width:320px;max-height:200px;overflow-y:auto;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:${s.text};font-size:13px;line-height:1.5;`
+    wrapper.style.cssText = `position:absolute;right:60px;top:calc(50% + 24px);z-index:1000;background:${s.bg};border:1px solid ${s.border};border-radius:6px;padding:8px 12px;max-width:320px;max-height:200px;overflow-y:auto;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:${s.text};font-size:13px;line-height:1.5;`
     const closeBtn = document.createElement('button')
     closeBtn.setAttribute('data-agent-overlay-close', '')
     closeBtn.textContent = '\u00d7'

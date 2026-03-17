@@ -123,11 +123,7 @@ export function createAgentOverlay(
       renderer.render(result)
 
       if (result.explanation) {
-        const fromX = chart.timeScale().timeToCoordinate(currentRange.from)
-        explanationPopup.show(result.explanation, {
-          x: (fromX ?? 100) as number,
-          y: options.ui?.promptPlacement === 'bottom' ? 8 : chartEl.clientHeight - 220,
-        })
+        explanationPopup.show(result.explanation)
       }
 
       promptInput.hide()
