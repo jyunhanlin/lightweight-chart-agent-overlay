@@ -68,6 +68,8 @@ export function createAgentOverlay(
     abortController = null
     promptInput.hide()
     explanationPopup.hide()
+    // Re-enable selection mode so user can drag again without pressing S
+    rangeSelector.setEnabled(true)
   }
 
   rangeSelector.onSelect = (_range) => {
