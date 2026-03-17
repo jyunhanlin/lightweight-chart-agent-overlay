@@ -30,7 +30,11 @@ interface SeriesLike {
 }
 
 function isValidPriceLine(item: unknown): boolean {
-  return typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).price === 'number'
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof (item as Record<string, unknown>).price === 'number'
+  )
 }
 
 function isValidMarker(item: unknown): boolean {
@@ -45,7 +49,9 @@ function validateResult(raw: unknown): AnalysisResult {
   }
   const obj = raw as Record<string, unknown>
 
-  const priceLines = Array.isArray(obj.priceLines) ? obj.priceLines.filter(isValidPriceLine) : undefined
+  const priceLines = Array.isArray(obj.priceLines)
+    ? obj.priceLines.filter(isValidPriceLine)
+    : undefined
   const markers = Array.isArray(obj.markers) ? obj.markers.filter(isValidMarker) : undefined
 
   return {
