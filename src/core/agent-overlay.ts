@@ -70,7 +70,7 @@ export function createAgentOverlay(
     explanationPopup.hide()
   }
 
-  rangeSelector.onSelect = (range) => {
+  rangeSelector.onSelect = (_range) => {
     // Cancel any in-flight request
     abortController?.abort()
     abortController = null
