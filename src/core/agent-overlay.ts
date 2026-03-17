@@ -63,6 +63,13 @@ export function createAgentOverlay(
 
   let abortController: AbortController | null = null
 
+  rangeSelector.onDismiss = () => {
+    abortController?.abort()
+    abortController = null
+    promptInput.hide()
+    explanationPopup.hide()
+  }
+
   rangeSelector.onSelect = (range) => {
     // Cancel any in-flight request
     abortController?.abort()

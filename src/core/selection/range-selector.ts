@@ -25,6 +25,7 @@ export class RangeSelector {
   private isDragging = false
 
   onSelect: ((range: { from: TimeValue; to: TimeValue }) => void) | null = null
+  onDismiss: (() => void) | null = null
 
   private readonly handleMouseDown: (e: MouseEvent) => void
   private readonly handleMouseMove: (e: MouseEvent) => void
@@ -38,7 +39,13 @@ export class RangeSelector {
     series.attachPrimitive(this.primitive)
 
     this.handleMouseDown = (e: MouseEvent) => {
-      if (!e.shiftKey) return
+      if (!e.shiftKey) {
+        if (this.primitive.getRange()) {
+          this.primitive.clearRange()
+          this.onDismiss?.()
+        }
+        return
+      }
       const x = e.clientX - this.el.getBoundingClientRect().left
       const time = this.chart.timeScale().coordinateToTime(x)
       if (time === null) return
