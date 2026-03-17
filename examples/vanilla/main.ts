@@ -1,6 +1,7 @@
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 import { createAgentOverlay } from '../../src/index'
 import { createAnthropicProvider } from '../../src/providers/anthropic'
+import type { LLMProvider, ChartContext, AnalysisResult } from '../../src/core/types'
 
 const container = document.getElementById('chart')!
 
@@ -37,14 +38,58 @@ for (let i = 0; i < 200; i++) {
 series.setData(data as never[])
 chart.timeScale().fitContent()
 
-const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-if (!apiKey) {
-  console.warn('Set VITE_ANTHROPIC_API_KEY in .env.local to enable AI analysis')
+// Mock provider: simulates 1.5s delay, returns support/resistance based on actual data
+const mockProvider: LLMProvider = {
+  async analyze(context: ChartContext, prompt: string, signal?: AbortSignal) {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, 1500)
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer)
+        const err = new Error('Aborted')
+        err.name = 'AbortError'
+        reject(err)
+      })
+    })
+
+    const prices = context.data.map((d) => d.close)
+    const low = Math.min(...prices)
+    const high = Math.max(...prices)
+
+    return {
+      explanation: `Analyzed ${context.data.length} candles. Support found at ${low.toFixed(2)} (range low). Resistance at ${high.toFixed(2)} (range high). The price action shows consolidation between these levels.`,
+      priceLines: [
+        { price: low, title: 'Support', color: '#26a69a', lineStyle: 'dashed' as const },
+        { price: high, title: 'Resistance', color: '#ef5350', lineStyle: 'dashed' as const },
+      ],
+      markers: [
+        {
+          time: context.data[0].time,
+          position: 'belowBar' as const,
+          shape: 'arrowUp' as const,
+          color: '#26a69a',
+          text: 'Range Start',
+        },
+        {
+          time: context.data[context.data.length - 1].time,
+          position: 'aboveBar' as const,
+          shape: 'arrowDown' as const,
+          color: '#ef5350',
+          text: 'Range End',
+        },
+      ],
+    } satisfies AnalysisResult
+  },
 }
 
-const provider = createAnthropicProvider({
-  apiKey: apiKey ?? '',
-})
+// Use real provider if API key is set, otherwise mock
+const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+const provider = apiKey
+  ? createAnthropicProvider({ apiKey })
+  : mockProvider
+
+if (!apiKey) {
+  console.log('Using mock provider (set VITE_ANTHROPIC_API_KEY for real AI)')
+}
 
 const agent = createAgentOverlay(chart as never, series as never, {
   provider,
