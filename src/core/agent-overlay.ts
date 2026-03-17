@@ -165,13 +165,6 @@ export function createAgentOverlay(
 
     setSelectionEnabled(enabled: boolean) {
       rangeSelector.setEnabled(enabled)
-      if (!enabled) {
-        abortController?.abort()
-        abortController = null
-        promptInput.hide()
-        explanationPopup.hide()
-        rangeSelector.clearSelection()
-      }
       emitter.emit('selection-mode-change', enabled)
     },
 
