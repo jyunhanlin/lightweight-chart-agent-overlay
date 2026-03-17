@@ -73,6 +73,7 @@ export interface AgentOverlayOptions {
 export interface AgentOverlayEventMap {
   'analyze-start': () => void
   'analyze-complete': (result: AnalysisResult) => void
+  'selection-mode-change': (enabled: boolean) => void
   error: (error: Error) => void
 }
 

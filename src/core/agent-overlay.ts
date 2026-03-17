@@ -70,6 +70,7 @@ export function createAgentOverlay(
     explanationPopup.hide()
     // Re-enable selection mode so user can drag again without pressing S
     rangeSelector.setEnabled(true)
+    emitter.emit('selection-mode-change', true)
   }
 
   rangeSelector.onSelect = (_range) => {
@@ -83,6 +84,7 @@ export function createAgentOverlay(
 
     // Disable selection mode so clicking elsewhere dismisses
     rangeSelector.setEnabled(false)
+    emitter.emit('selection-mode-change', false)
 
     promptInput.show()
   }
@@ -151,6 +153,7 @@ export function createAgentOverlay(
 
     setSelectionEnabled(enabled: boolean) {
       rangeSelector.setEnabled(enabled)
+      emitter.emit('selection-mode-change', enabled)
     },
 
     on<K extends keyof AgentOverlayEventMap>(
