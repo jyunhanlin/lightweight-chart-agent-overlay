@@ -87,8 +87,6 @@ export function createAgentOverlay(
     abortController = null
     promptInput.hide()
     explanationPopup.hide()
-    // Re-enable selection so user can drag again without pressing S
-    rangeSelector.setEnabled(true)
   }
 
   rangeSelector.onSelect = (_range) => {
@@ -99,9 +97,6 @@ export function createAgentOverlay(
     // Hide previous UI
     promptInput.hide()
     explanationPopup.hide()
-
-    // Disable selection so clicking elsewhere dismisses
-    rangeSelector.setEnabled(false)
 
     promptInput.show()
   }
@@ -151,8 +146,6 @@ export function createAgentOverlay(
     abortController?.abort()
     abortController = null
     rangeSelector.clearSelection()
-    // Re-enable selection so user can drag again
-    rangeSelector.setEnabled(true)
   }
 
   return {
