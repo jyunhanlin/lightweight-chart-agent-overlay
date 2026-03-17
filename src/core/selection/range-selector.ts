@@ -20,6 +20,7 @@ export class RangeSelector {
   private readonly series: SeriesLike
   private readonly el: HTMLElement
   private startX: number | null = null
+  private startTime: TimeValue | null = null
   private isDragging = false
 
   onSelect: ((range: { from: TimeValue; to: TimeValue }) => void) | null = null
@@ -37,36 +38,39 @@ export class RangeSelector {
 
     this.handleMouseDown = (e: MouseEvent) => {
       if (!e.shiftKey) return
-      this.startX = e.clientX - this.el.getBoundingClientRect().left
+      const x = e.clientX - this.el.getBoundingClientRect().left
+      const time = this.chart.timeScale().coordinateToTime(x)
+      if (time === null) return
+      this.startX = x
+      this.startTime = time
       this.isDragging = false
       this.primitive.clearRange()
     }
 
     this.handleMouseMove = (e: MouseEvent) => {
-      if (this.startX === null || !e.shiftKey) return
+      if (this.startX === null || this.startTime === null || !e.shiftKey) return
       const currentX = e.clientX - this.el.getBoundingClientRect().left
       if (!this.isDragging && Math.abs(currentX - this.startX) >= MIN_DRAG_PX) {
         this.isDragging = true
       }
       if (!this.isDragging) return
-      const fromTime = this.chart.timeScale().coordinateToTime(this.startX)
       const toTime = this.chart.timeScale().coordinateToTime(currentX)
-      if (fromTime !== null && toTime !== null) {
-        this.primitive.setRange({ from: fromTime, to: toTime })
+      if (toTime !== null) {
+        this.primitive.setRange({ from: this.startTime, to: toTime })
       }
     }
 
     this.handleMouseUp = (e: MouseEvent) => {
-      if (this.startX === null) return
-      const endX = e.clientX - this.el.getBoundingClientRect().left
+      if (this.startX === null || this.startTime === null) return
       if (this.isDragging) {
-        const fromTime = this.chart.timeScale().coordinateToTime(this.startX)
+        const endX = e.clientX - this.el.getBoundingClientRect().left
         const toTime = this.chart.timeScale().coordinateToTime(endX)
-        if (fromTime !== null && toTime !== null) {
-          this.onSelect?.({ from: fromTime, to: toTime })
+        if (toTime !== null) {
+          this.onSelect?.({ from: this.startTime, to: toTime })
         }
       }
       this.startX = null
+      this.startTime = null
       this.isDragging = false
     }
 
