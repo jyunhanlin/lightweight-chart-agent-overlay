@@ -40,6 +40,7 @@ export class PromptInput {
         this.onCancel?.()
       }
     })
+    wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     wrapper.appendChild(input)
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
