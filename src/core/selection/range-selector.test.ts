@@ -9,6 +9,7 @@ function createMockChart() {
     el,
     timeScale: () => ({ coordinateToTime }),
     chartElement: () => el,
+    applyOptions: vi.fn(),
   }
 }
 

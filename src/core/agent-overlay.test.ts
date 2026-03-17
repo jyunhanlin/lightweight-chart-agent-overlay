@@ -26,6 +26,7 @@ function createMockChart() {
         timeToCoordinate: vi.fn((t: number) => t / 10),
       }),
       chartElement: () => el,
+      applyOptions: vi.fn(),
     },
   }
 }
@@ -109,9 +110,9 @@ describe('createAgentOverlay', () => {
     agent.on('analyze-complete', onComplete)
 
     // Simulate drag selection
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
 
     // Find and submit prompt via the input element
     const input = el.querySelector('input') as HTMLInputElement
@@ -145,9 +146,9 @@ describe('createAgentOverlay', () => {
     agent.on('error', onError)
 
     // Simulate drag selection
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
 
     const input = el.querySelector('input') as HTMLInputElement
     if (input) {
@@ -182,9 +183,9 @@ describe('createAgentOverlay', () => {
     agent.on('error', onError)
 
     // First drag selection and submit
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
 
     const input = el.querySelector('input') as HTMLInputElement
     if (input) {
@@ -193,9 +194,9 @@ describe('createAgentOverlay', () => {
     }
 
     // New drag selection while request is in-flight — triggers abort
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 20, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, bubbles: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 60, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 20, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, bubbles: true, shiftKey: true }))
+    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 60, bubbles: true, shiftKey: true }))
 
     // AbortError should be swallowed, not emitted
     await new Promise((r) => setTimeout(r, 50))

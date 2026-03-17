@@ -7,6 +7,7 @@ const MIN_DRAG_PX = 5
 interface ChartLike {
   timeScale(): { coordinateToTime(x: number): TimeValue | null }
   chartElement(): HTMLElement
+  applyOptions(options: Record<string, unknown>): void
 }
 
 interface SeriesLike {
@@ -45,6 +46,8 @@ export class RangeSelector {
       this.startTime = time
       this.isDragging = false
       this.primitive.clearRange()
+      // Disable chart pan/zoom during selection
+      this.chart.applyOptions({ handleScroll: false, handleScale: false })
     }
 
     this.handleMouseMove = (e: MouseEvent) => {
@@ -72,6 +75,8 @@ export class RangeSelector {
       this.startX = null
       this.startTime = null
       this.isDragging = false
+      // Re-enable chart pan/zoom
+      this.chart.applyOptions({ handleScroll: true, handleScale: true })
     }
 
     this.el.addEventListener('mousedown', this.handleMouseDown)
