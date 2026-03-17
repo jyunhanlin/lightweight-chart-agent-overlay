@@ -48,13 +48,17 @@ export class RangeSelector {
         }
         return
       }
+      // Dismiss previous selection UI before starting a new one
+      if (this.primitive.getRange()) {
+        this.primitive.clearRange()
+        this.onDismiss?.()
+      }
       const x = e.clientX - this.el.getBoundingClientRect().left
       const time = this.chart.timeScale().coordinateToTime(x)
       if (time === null) return
       this.startX = x
       this.startTime = time
       this.isDragging = false
-      this.primitive.clearRange()
     }
 
     this.handleMouseMove = (e: MouseEvent) => {
