@@ -79,13 +79,7 @@ export function createAgentOverlay(
     promptInput.hide()
     explanationPopup.hide()
 
-    // Show prompt input near the selection
-    const fromX = chart.timeScale().timeToCoordinate(range.from)
-    const placement = options.ui?.promptPlacement ?? 'top'
-    const y = placement === 'top' ? 8 : chartEl.clientHeight - 48
-    const x = fromX ?? 100
-
-    promptInput.show({ x, y })
+    promptInput.show()
   }
 
   promptInput.onSubmit = async (prompt: string) => {

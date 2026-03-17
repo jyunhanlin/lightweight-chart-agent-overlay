@@ -21,16 +21,16 @@ export class PromptInput {
     this.theme = theme
   }
 
-  show(position: { x: number; y: number }): void {
+  show(): void {
     this.hide()
     const s = THEME_STYLES[this.theme]
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-prompt', '')
-    wrapper.style.cssText = `position:absolute;left:${position.x}px;top:${position.y}px;z-index:1000;display:flex;align-items:center;gap:4px;background:${s.bg};border:1px solid ${s.border};border-radius:6px;padding:4px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.3);`
+    wrapper.style.cssText = `position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:4px;background:${s.bg};border:1px solid ${s.border};border-radius:8px;padding:6px 12px;box-shadow:0 4px 12px rgba(0,0,0,0.4);`
     const input = document.createElement('input')
     input.type = 'text'
     input.placeholder = 'Ask about this range...'
-    input.style.cssText = `background:transparent;border:none;outline:none;color:${s.text};font-size:13px;width:260px;font-family:inherit;`
+    input.style.cssText = `background:transparent;border:none;outline:none;color:${s.text};font-size:14px;width:320px;font-family:inherit;`
     input.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         const value = input.value.trim()

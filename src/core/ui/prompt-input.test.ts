@@ -13,13 +13,13 @@ describe('PromptInput', () => {
 
   it('show() adds input element to container', () => {
     const input = new PromptInput(container)
-    input.show({ x: 100, y: 50 })
+    input.show()
     expect(container.querySelector('[data-agent-overlay-prompt]')).not.toBeNull()
   })
 
   it('hide() removes element from container', () => {
     const input = new PromptInput(container)
-    input.show({ x: 100, y: 50 })
+    input.show()
     input.hide()
     expect(container.querySelector('[data-agent-overlay-prompt]')).toBeNull()
   })
@@ -28,7 +28,7 @@ describe('PromptInput', () => {
     const input = new PromptInput(container)
     const onSubmit = vi.fn()
     input.onSubmit = onSubmit
-    input.show({ x: 100, y: 50 })
+    input.show()
     const inputEl = container.querySelector('input') as HTMLInputElement
     inputEl.value = 'Draw support lines'
     inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
@@ -39,7 +39,7 @@ describe('PromptInput', () => {
     const input = new PromptInput(container)
     const onSubmit = vi.fn()
     input.onSubmit = onSubmit
-    input.show({ x: 100, y: 50 })
+    input.show()
     const inputEl = container.querySelector('input') as HTMLInputElement
     inputEl.value = '   '
     inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
@@ -48,7 +48,7 @@ describe('PromptInput', () => {
 
   it('hides on Escape key', () => {
     const input = new PromptInput(container)
-    input.show({ x: 100, y: 50 })
+    input.show()
     const inputEl = container.querySelector('input') as HTMLInputElement
     inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     expect(container.querySelector('[data-agent-overlay-prompt]')).toBeNull()
@@ -56,7 +56,7 @@ describe('PromptInput', () => {
 
   it('setLoading shows loading indicator', () => {
     const input = new PromptInput(container)
-    input.show({ x: 100, y: 50 })
+    input.show()
     input.setLoading(true)
     const inputEl = container.querySelector('input') as HTMLInputElement
     expect(inputEl.disabled).toBe(true)
@@ -64,7 +64,7 @@ describe('PromptInput', () => {
 
   it('destroy cleans up', () => {
     const input = new PromptInput(container)
-    input.show({ x: 100, y: 50 })
+    input.show()
     input.destroy()
     expect(container.querySelector('[data-agent-overlay-prompt]')).toBeNull()
   })
