@@ -19,8 +19,13 @@ function createMockSeries() {
   }
 }
 
-function fireMouseEvent(el: HTMLElement, type: string, clientX: number) {
-  const event = new MouseEvent(type, { clientX, clientY: 50, bubbles: true })
+function fireMouseEvent(
+  el: HTMLElement,
+  type: string,
+  clientX: number,
+  shiftKey = true,
+) {
+  const event = new MouseEvent(type, { clientX, clientY: 50, bubbles: true, shiftKey })
   el.dispatchEvent(event)
 }
 
@@ -52,6 +57,18 @@ describe('RangeSelector', () => {
     selector.onSelect = onSelect
     fireMouseEvent(chart.el, 'mousedown', 10)
     fireMouseEvent(chart.el, 'mouseup', 10)
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('ignores drag without Shift key', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    const onSelect = vi.fn()
+    selector.onSelect = onSelect
+    fireMouseEvent(chart.el, 'mousedown', 10, false)
+    fireMouseEvent(chart.el, 'mousemove', 50, false)
+    fireMouseEvent(chart.el, 'mouseup', 50, false)
     expect(onSelect).not.toHaveBeenCalled()
   })
 

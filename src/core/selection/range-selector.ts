@@ -36,13 +36,14 @@ export class RangeSelector {
     series.attachPrimitive(this.primitive)
 
     this.handleMouseDown = (e: MouseEvent) => {
+      if (!e.shiftKey) return
       this.startX = e.clientX - this.el.getBoundingClientRect().left
       this.isDragging = false
       this.primitive.clearRange()
     }
 
     this.handleMouseMove = (e: MouseEvent) => {
-      if (this.startX === null) return
+      if (this.startX === null || !e.shiftKey) return
       const currentX = e.clientX - this.el.getBoundingClientRect().left
       if (!this.isDragging && Math.abs(currentX - this.startX) >= MIN_DRAG_PX) {
         this.isDragging = true
