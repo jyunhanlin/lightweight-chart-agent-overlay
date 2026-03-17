@@ -79,6 +79,9 @@ export function createAgentOverlay(
     promptInput.hide()
     explanationPopup.hide()
 
+    // Disable selection mode so clicking elsewhere dismisses
+    rangeSelector.setEnabled(false)
+
     promptInput.show()
   }
 
