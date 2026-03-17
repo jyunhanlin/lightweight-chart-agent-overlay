@@ -23,6 +23,7 @@ export class RangeSelector {
   private startX: number | null = null
   private startTime: TimeValue | null = null
   private isDragging = false
+  private _enabled = false
 
   onSelect: ((range: { from: TimeValue; to: TimeValue }) => void) | null = null
   onDismiss: (() => void) | null = null
@@ -39,7 +40,7 @@ export class RangeSelector {
     series.attachPrimitive(this.primitive)
 
     this.handleMouseDown = (e: MouseEvent) => {
-      if (!e.shiftKey) {
+      if (!this._enabled) {
         if (this.primitive.getRange()) {
           this.primitive.clearRange()
           this.onDismiss?.()
@@ -53,12 +54,10 @@ export class RangeSelector {
       this.startTime = time
       this.isDragging = false
       this.primitive.clearRange()
-      // Disable chart pan/zoom during selection
-      this.chart.applyOptions({ handleScroll: false, handleScale: false })
     }
 
     this.handleMouseMove = (e: MouseEvent) => {
-      if (this.startX === null || this.startTime === null || !e.shiftKey) return
+      if (this.startX === null || this.startTime === null) return
       const currentX = e.clientX - this.el.getBoundingClientRect().left
       if (!this.isDragging && Math.abs(currentX - this.startX) >= MIN_DRAG_PX) {
         this.isDragging = true
@@ -82,13 +81,28 @@ export class RangeSelector {
       this.startX = null
       this.startTime = null
       this.isDragging = false
-      // Re-enable chart pan/zoom
-      this.chart.applyOptions({ handleScroll: true, handleScale: true })
     }
 
     this.el.addEventListener('mousedown', this.handleMouseDown)
     this.el.addEventListener('mousemove', this.handleMouseMove)
     this.el.addEventListener('mouseup', this.handleMouseUp)
+  }
+
+  get enabled(): boolean {
+    return this._enabled
+  }
+
+  setEnabled(enabled: boolean): void {
+    this._enabled = enabled
+    this.chart.applyOptions({
+      handleScroll: !enabled,
+      handleScale: !enabled,
+    })
+    if (!enabled) {
+      this.startX = null
+      this.startTime = null
+      this.isDragging = false
+    }
   }
 
   getRange(): { from: TimeValue; to: TimeValue } | null {

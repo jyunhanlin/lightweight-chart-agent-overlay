@@ -144,6 +144,10 @@ export function createAgentOverlay(
       explanationPopup.hide()
     },
 
+    setSelectionEnabled(enabled: boolean) {
+      rangeSelector.setEnabled(enabled)
+    },
+
     on<K extends keyof AgentOverlayEventMap>(
       event: K,
       handler: AgentOverlayEventMap[K],

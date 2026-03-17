@@ -20,13 +20,8 @@ function createMockSeries() {
   }
 }
 
-function fireMouseEvent(
-  el: HTMLElement,
-  type: string,
-  clientX: number,
-  shiftKey = true,
-) {
-  const event = new MouseEvent(type, { clientX, clientY: 50, bubbles: true, shiftKey })
+function fireMouseEvent(el: HTMLElement, type: string, clientX: number) {
+  const event = new MouseEvent(type, { clientX, clientY: 50, bubbles: true })
   el.dispatchEvent(event)
 }
 
@@ -38,16 +33,30 @@ describe('RangeSelector', () => {
     expect(series.attachPrimitive).toHaveBeenCalledOnce()
   })
 
-  it('emits onSelect after mousedown → mousemove → mouseup', () => {
+  it('emits onSelect when enabled and dragged', () => {
     const chart = createMockChart()
     const series = createMockSeries()
     const selector = new RangeSelector(chart as never, series as never)
     const onSelect = vi.fn()
     selector.onSelect = onSelect
+    selector.setEnabled(true)
     fireMouseEvent(chart.el, 'mousedown', 10)
     fireMouseEvent(chart.el, 'mousemove', 50)
     fireMouseEvent(chart.el, 'mouseup', 50)
     expect(onSelect).toHaveBeenCalledWith({ from: 100, to: 500 })
+  })
+
+  it('ignores drag when not enabled', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    const onSelect = vi.fn()
+    selector.onSelect = onSelect
+    // not enabled by default
+    fireMouseEvent(chart.el, 'mousedown', 10)
+    fireMouseEvent(chart.el, 'mousemove', 50)
+    fireMouseEvent(chart.el, 'mouseup', 50)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it('does not emit onSelect for click without drag (same position)', () => {
@@ -56,21 +65,45 @@ describe('RangeSelector', () => {
     const selector = new RangeSelector(chart as never, series as never)
     const onSelect = vi.fn()
     selector.onSelect = onSelect
+    selector.setEnabled(true)
     fireMouseEvent(chart.el, 'mousedown', 10)
     fireMouseEvent(chart.el, 'mouseup', 10)
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('ignores drag without Shift key', () => {
+  it('setEnabled disables chart scroll/scale', () => {
     const chart = createMockChart()
     const series = createMockSeries()
     const selector = new RangeSelector(chart as never, series as never)
-    const onSelect = vi.fn()
-    selector.onSelect = onSelect
-    fireMouseEvent(chart.el, 'mousedown', 10, false)
-    fireMouseEvent(chart.el, 'mousemove', 50, false)
-    fireMouseEvent(chart.el, 'mouseup', 50, false)
-    expect(onSelect).not.toHaveBeenCalled()
+    selector.setEnabled(true)
+    expect(chart.applyOptions).toHaveBeenCalledWith({
+      handleScroll: false,
+      handleScale: false,
+    })
+    selector.setEnabled(false)
+    expect(chart.applyOptions).toHaveBeenCalledWith({
+      handleScroll: true,
+      handleScale: true,
+    })
+  })
+
+  it('click when disabled dismisses existing selection', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    const onDismiss = vi.fn()
+    selector.onDismiss = onDismiss
+
+    // Enable, drag to create selection
+    selector.setEnabled(true)
+    fireMouseEvent(chart.el, 'mousedown', 10)
+    fireMouseEvent(chart.el, 'mousemove', 50)
+    fireMouseEvent(chart.el, 'mouseup', 50)
+
+    // Disable, then click to dismiss
+    selector.setEnabled(false)
+    fireMouseEvent(chart.el, 'mousedown', 30)
+    expect(onDismiss).toHaveBeenCalledOnce()
   })
 
   it('destroy removes event listeners and detaches primitive', () => {
@@ -81,6 +114,7 @@ describe('RangeSelector', () => {
     expect(series.detachPrimitive).toHaveBeenCalledOnce()
     const onSelect = vi.fn()
     selector.onSelect = onSelect
+    selector.setEnabled(true)
     fireMouseEvent(chart.el, 'mousedown', 10)
     fireMouseEvent(chart.el, 'mousemove', 50)
     fireMouseEvent(chart.el, 'mouseup', 50)

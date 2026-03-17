@@ -53,3 +53,13 @@ const agent = createAgentOverlay(chart as never, series as never, {
 agent.on('analyze-start', () => console.log('Analysis started...'))
 agent.on('analyze-complete', (result) => console.log('Analysis complete:', result))
 agent.on('error', (err) => console.error('Analysis error:', err))
+
+// Toggle selection mode with 'S' key
+let selectionEnabled = false
+document.addEventListener('keydown', (e) => {
+  if (e.key === 's' || e.key === 'S') {
+    selectionEnabled = !selectionEnabled
+    agent.setSelectionEnabled(selectionEnabled)
+    console.log(`Selection mode: ${selectionEnabled ? 'ON' : 'OFF'}`)
+  }
+})

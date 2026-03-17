@@ -81,5 +81,6 @@ export interface AgentOverlayEventMap {
 export interface AgentOverlay {
   destroy(): void
   clearOverlays(): void
+  setSelectionEnabled(enabled: boolean): void
   on<K extends keyof AgentOverlayEventMap>(event: K, handler: AgentOverlayEventMap[K]): () => void
 }

@@ -17,6 +17,7 @@ interface SeriesLike {
 
 interface UseAgentOverlayReturn {
   clearOverlays: () => void
+  setSelectionEnabled: (enabled: boolean) => void
   isAnalyzing: boolean
   error: Error | null
   lastResult: AnalysisResult | null
@@ -62,5 +63,9 @@ export function useAgentOverlay(
     setLastResult(null)
   }, [])
 
-  return { clearOverlays, isAnalyzing, error, lastResult }
+  const setSelectionEnabled = useCallback((enabled: boolean) => {
+    agentRef.current?.setSelectionEnabled(enabled)
+  }, [])
+
+  return { clearOverlays, setSelectionEnabled, isAnalyzing, error, lastResult }
 }

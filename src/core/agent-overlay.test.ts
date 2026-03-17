@@ -51,6 +51,12 @@ function createMockProvider(result: AnalysisResult = {}): LLMProvider {
   }
 }
 
+function fireDrag(el: HTMLElement, fromX: number, toX: number) {
+  el.dispatchEvent(new MouseEvent('mousedown', { clientX: fromX, bubbles: true }))
+  el.dispatchEvent(new MouseEvent('mousemove', { clientX: toX, bubbles: true }))
+  el.dispatchEvent(new MouseEvent('mouseup', { clientX: toX, bubbles: true }))
+}
+
 describe('createAgentOverlay', () => {
   it('returns AgentOverlay with expected methods', () => {
     const { chart } = createMockChart()
@@ -61,6 +67,7 @@ describe('createAgentOverlay', () => {
 
     expect(agent.destroy).toBeInstanceOf(Function)
     expect(agent.clearOverlays).toBeInstanceOf(Function)
+    expect(agent.setSelectionEnabled).toBeInstanceOf(Function)
     expect(agent.on).toBeInstanceOf(Function)
   })
 
@@ -109,18 +116,14 @@ describe('createAgentOverlay', () => {
     const onComplete = vi.fn()
     agent.on('analyze-complete', onComplete)
 
-    // Simulate drag selection
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
+    agent.setSelectionEnabled(true)
+    fireDrag(el, 10, 50)
 
-    // Find and submit prompt via the input element
     const input = el.querySelector('input') as HTMLInputElement
     if (input) {
       input.value = 'Find support levels'
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
 
-      // Wait for async provider call
       await vi.waitFor(() => {
         expect(provider.analyze).toHaveBeenCalled()
       })
@@ -145,10 +148,8 @@ describe('createAgentOverlay', () => {
     const onError = vi.fn()
     agent.on('error', onError)
 
-    // Simulate drag selection
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
+    agent.setSelectionEnabled(true)
+    fireDrag(el, 10, 50)
 
     const input = el.querySelector('input') as HTMLInputElement
     if (input) {
@@ -183,9 +184,8 @@ describe('createAgentOverlay', () => {
     agent.on('error', onError)
 
     // First drag selection and submit
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, bubbles: true, shiftKey: true }))
+    agent.setSelectionEnabled(true)
+    fireDrag(el, 10, 50)
 
     const input = el.querySelector('input') as HTMLInputElement
     if (input) {
@@ -194,9 +194,7 @@ describe('createAgentOverlay', () => {
     }
 
     // New drag selection while request is in-flight — triggers abort
-    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 20, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, bubbles: true, shiftKey: true }))
-    el.dispatchEvent(new MouseEvent('mouseup', { clientX: 60, bubbles: true, shiftKey: true }))
+    fireDrag(el, 20, 60)
 
     // AbortError should be swallowed, not emitted
     await new Promise((r) => setTimeout(r, 50))
