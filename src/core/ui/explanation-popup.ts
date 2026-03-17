@@ -14,6 +14,7 @@ export class ExplanationPopup {
   private readonly theme: Theme
   private wrapper: HTMLElement | null = null
   private readonly handleEscape: (e: KeyboardEvent) => void
+  onClose: (() => void) | null = null
 
   constructor(container: HTMLElement, theme: Theme = 'dark') {
     this.container = container
@@ -49,10 +50,12 @@ export class ExplanationPopup {
       this.wrapper.remove()
       this.wrapper = null
       document.removeEventListener('keydown', this.handleEscape)
+      this.onClose?.()
     }
   }
 
   destroy(): void {
+    this.onClose = null
     this.hide()
   }
 }

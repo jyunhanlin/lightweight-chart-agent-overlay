@@ -80,6 +80,11 @@ export function createAgentOverlay(
   const promptInput = new PromptInput(chartEl, theme)
   const explanationPopup = new ExplanationPopup(chartEl, theme)
 
+  explanationPopup.onClose = () => {
+    renderer.clear()
+    rangeSelector.clearSelection()
+  }
+
   let abortController: AbortController | null = null
 
   rangeSelector.onDismiss = () => {
