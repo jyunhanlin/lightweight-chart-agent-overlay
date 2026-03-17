@@ -37,8 +37,13 @@ for (let i = 0; i < 200; i++) {
 series.setData(data as never[])
 chart.timeScale().fitContent()
 
+const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+if (!apiKey) {
+  console.warn('Set VITE_ANTHROPIC_API_KEY in .env.local to enable AI analysis')
+}
+
 const provider = createAnthropicProvider({
-  apiKey: 'YOUR_API_KEY_HERE',
+  apiKey: apiKey ?? '',
 })
 
 const agent = createAgentOverlay(chart as never, series as never, {
