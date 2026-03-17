@@ -53,6 +53,7 @@ describe('SelectionPrimitive', () => {
     primitive.updateAllViews()
     const views = primitive.paneViews()
     expect(views).toHaveLength(1)
-    expect(views[0].renderer).toBeDefined()
+    expect(views[0].renderer).toBeInstanceOf(Function)
+    expect(views[0].renderer()).toBeDefined()
   })
 })

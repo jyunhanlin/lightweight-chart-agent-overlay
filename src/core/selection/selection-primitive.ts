@@ -23,7 +23,7 @@ interface PaneRenderer {
 }
 
 interface PaneView {
-  renderer: PaneRenderer
+  renderer(): PaneRenderer
 }
 
 const HIGHLIGHT_COLOR = 'rgba(33, 150, 243, 0.15)'
@@ -78,13 +78,15 @@ export class SelectionPrimitive {
     const x2 = this.x2
     this.cachedViews = [
       {
-        renderer: {
-          draw(target) {
-            const ctx = target.context
-            const height = target.mediaSize.height
-            ctx.fillStyle = HIGHLIGHT_COLOR
-            ctx.fillRect(x1, 0, x2 - x1, height)
-          },
+        renderer() {
+          return {
+            draw(target) {
+              const ctx = target.context
+              const height = target.mediaSize.height
+              ctx.fillStyle = HIGHLIGHT_COLOR
+              ctx.fillRect(x1, 0, x2 - x1, height)
+            },
+          }
         },
       },
     ]
