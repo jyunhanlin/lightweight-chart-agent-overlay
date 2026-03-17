@@ -26,7 +26,7 @@ export class PromptInput {
     const s = THEME_STYLES[this.theme]
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-prompt', '')
-    wrapper.style.cssText = `position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:4px;background:${s.bg};border:1px solid ${s.border};border-radius:8px;padding:6px 12px;box-shadow:0 4px 12px rgba(0,0,0,0.4);`
+    wrapper.style.cssText = `position:absolute;right:60px;top:50%;transform:translateY(-50%);z-index:1000;display:flex;align-items:center;gap:4px;background:${s.bg};border:1px solid ${s.border};border-radius:8px;padding:6px 12px;box-shadow:0 4px 12px rgba(0,0,0,0.4);`
     const input = document.createElement('input')
     input.type = 'text'
     input.placeholder = 'Ask about this range...'
