@@ -151,6 +151,8 @@ export function createAgentOverlay(
     abortController?.abort()
     abortController = null
     rangeSelector.clearSelection()
+    // Re-enable selection so user can drag again
+    rangeSelector.setEnabled(true)
   }
 
   return {

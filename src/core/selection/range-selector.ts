@@ -22,6 +22,7 @@ export class RangeSelector {
   private readonly el: HTMLElement
   private startX: number | null = null
   private startTime: TimeValue | null = null
+  private lastValidToTime: TimeValue | null = null
   private isDragging = false
   private _enabled = false
 
@@ -65,6 +66,7 @@ export class RangeSelector {
       if (!this.isDragging) return
       const toTime = this.chart.timeScale().coordinateToTime(currentX)
       if (toTime !== null) {
+        this.lastValidToTime = toTime
         this.primitive.setRange({ from: this.startTime, to: toTime })
       }
     }
@@ -73,13 +75,14 @@ export class RangeSelector {
       if (this.startX === null || this.startTime === null) return
       if (this.isDragging) {
         const endX = e.clientX - this.el.getBoundingClientRect().left
-        const toTime = this.chart.timeScale().coordinateToTime(endX)
+        const toTime = this.chart.timeScale().coordinateToTime(endX) ?? this.lastValidToTime
         if (toTime !== null) {
           this.onSelect?.({ from: this.startTime, to: toTime })
         }
       }
       this.startX = null
       this.startTime = null
+      this.lastValidToTime = null
       this.isDragging = false
     }
 
