@@ -2,7 +2,7 @@
 
 ## Overview
 
-An npm package that lets developers add AI-powered analysis to TradingView Lightweight Charts. Users select a range of candlesticks on the chart, type a prompt, and the AI responds by overlaying price lines and markers directly onto the chart.
+An npm package that lets developers add AI-powered analysis to TradingView Lightweight Charts. Users toggle selection mode, drag-select a range of candlesticks on the chart, type a prompt, and the AI responds by overlaying price lines and markers directly onto the chart.
 
 No complete open-source implementation of this "chart-as-an-agent" pattern exists today.
 
@@ -16,16 +16,18 @@ Frontend developers who already use Lightweight Charts and want to add AI analys
 |----------|--------|-----------|
 | Framework | Vanilla JS core + React hook wrapper | Lightweight Charts is framework-agnostic; binding to React excludes Vue/Svelte/vanilla users |
 | LLM Integration | Provider abstraction layer | Built-in frontend provider for quick prototyping; injectable backend provider for production security |
-| Interaction Model | Plugin architecture (not headless) | Minimal API surface; 3 lines to get running; internal UI management |
+| Interaction Model | Plugin architecture (not headless) | Minimal API surface; internal UI management |
+| Selection Mode | Explicit toggle via `setSelectionEnabled()` | Avoids conflict with chart's native pan/scroll; developers choose their own trigger (button, hotkey, etc.) |
 | Overlay Types (MVP) | Price Lines + Markers only | `series.createPriceLine()` + v5 markers plugin (`createSeriesMarkers()`); no custom primitives for overlays |
-| Selection Highlight | Series Primitive | Follows chart zoom/pan automatically via `updateAllViews()` lifecycle |
-| Prompt Input | DOM overlay | UI element, not chart drawing; positioned above chart container |
+| Selection Highlight | Series Primitive with `useMediaCoordinateSpace()` | Follows chart zoom/pan automatically via `updateAllViews()` lifecycle; uses v5 `renderer()` method pattern |
+| Prompt Input | DOM overlay, right-center positioned | UI element, not chart drawing; `stopPropagation` on mousedown to prevent dismiss |
 | Data Source | Read from chart series by default | Zero-config via `series.data()`; optional `dataAccessor` override for richer data |
 
 ## Phased Roadmap
 
 **Phase 1 (MVP):** Selection + Prompt + Overlay
-- User drags to select a time range on the chart
+- Developer enables selection mode via `setSelectionEnabled(true)`
+- User drags to select a time range on the chart (chart pan/zoom disabled while in selection mode)
 - Prompt input appears; user types a question
 - AI analyzes the selected OHLCV data and returns structured overlay instructions
 - Package renders price lines and markers on the chart
@@ -74,13 +76,28 @@ type DataAccessor = (timeRange: {
 interface AgentOverlay {
   destroy(): void
   clearOverlays(): void
+  setSelectionEnabled(enabled: boolean): void
   on(event: 'analyze-start', handler: () => void): () => void
   on(event: 'analyze-complete', handler: (result: AnalysisResult) => void): () => void
+  on(event: 'selection-mode-change', handler: (enabled: boolean) => void): () => void
   on(event: 'error', handler: (error: Error) => void): () => void
 }
 ```
 
 `on()` returns an unsubscribe function. Calling `destroy()` removes all listeners.
+
+### Selection Mode
+
+`setSelectionEnabled(enabled)` is the **only** way to toggle selection mode. Internal operations (select, dismiss, cancel) never change the mode — it is purely controlled by the developer.
+
+When `enabled = true`:
+- Chart pan/zoom is disabled (`handleScroll: false, handleScale: false`)
+- Dragging creates a selection range
+- Starting a new drag automatically dismisses the previous selection and UI
+
+When `enabled = false`:
+- Chart pan/zoom works normally
+- Clicking on the chart dismisses any existing selection highlight and UI
 
 ### React Hook
 
@@ -92,6 +109,7 @@ function useAgentOverlay(
   options: AgentOverlayOptions
 ): {
   clearOverlays: () => void
+  setSelectionEnabled: (enabled: boolean) => void
   isAnalyzing: boolean
   error: Error | null
   lastResult: AnalysisResult | null
@@ -198,39 +216,52 @@ interface AnalysisResult {
 - `lineStyle` strings must be mapped to Lightweight Charts `LineStyle` enum values in `overlay-renderer.ts` (`'solid'` → `LineStyle.Solid`, `'dashed'` → `LineStyle.Dashed`, `'dotted'` → `LineStyle.Dotted`)
 - `position` and `shape` values match Lightweight Charts' `SeriesMarkerPosition` and `SeriesMarkerShape` types directly
 
+**Validation:** `validateResult()` filters out malformed entries — price lines without a numeric `price`, and markers missing `time`, `position`, or `shape` are silently dropped.
+
 ## Interaction Flow
 
 ```
 User                        Package                         LLM
 ────                        ───────                         ───
-1. mousedown on chart
-   → mousemove (drag)       2. Draw selection highlight
-   → mouseup                   (Series Primitive)
+1. Developer calls
+   setSelectionEnabled(true)
+   → chart pan/zoom disabled
+   → 'selection-mode-change'
+     event emitted
 
-                            3. coordinateToTime() to get
+2. mousedown on chart
+   → mousemove (drag)       3. Draw selection highlight
+   → mouseup                   (Series Primitive via
+                                useMediaCoordinateSpace)
+
+                            4. coordinateToTime() to get
                                time range boundaries
+                               (tracks last valid time
+                                for edge-of-chart fallback)
 
-                            4. series.data() → filter by
+                            5. series.data() → filter by
                                time range → OHLCData[]
 
-                            5. Show prompt input (DOM overlay)
+                            6. Show prompt input
+                               (right-center, DOM overlay)
 
-6. Type prompt, press Enter
+7. Type prompt, press Enter
 
-                            7. Show loading indicator
+                            8. Show loading indicator
                                in prompt area
 
-                            8. Build ChartContext
+                            9. Build ChartContext
                                { timeRange, data }
                                Call provider.analyze(
                                  context, prompt, signal
-                               )                        →   9. Analyze data
+                               )                        →   10. Analyze data
 
-                                                        ←   10. Return AnalysisResult
+                                                        ←   11. Return AnalysisResult
 
-                            11. Parse & validate result
+                            12. Validate result
+                                (filter invalid entries)
 
-                            12. Render overlays:
+                            13. Render overlays:
                                 - series.createPriceLine()
                                   for each priceLine
                                   (store IPriceLine refs
@@ -238,15 +269,20 @@ User                        Package                         LLM
                                 - createSeriesMarkers()
                                   plugin for markers
 
-                            13. Show explanation popup
-                                (positioned near selection,
-                                 dismissible via click/Esc,
-                                 scrollable if content is long)
+                            14. Show explanation popup
+                                (dismissible via Esc
+                                 or close button,
+                                 scrollable if long)
 
-                            14. Hide prompt input
+                            15. Hide prompt input
 ```
 
-**Cancellation:** If the user starts a new drag selection while a request is in-flight, the package aborts the pending request via `AbortSignal` and starts a fresh flow from step 2.
+**Dismiss behavior:**
+- Selection mode ON + new drag → previous selection/UI auto-dismissed, new selection starts
+- Selection mode ON + Esc in prompt → prompt and selection cleared, can immediately drag again
+- Selection mode OFF + click → selection highlight and all UI dismissed
+
+**Cancellation:** If the user starts a new drag selection while a request is in-flight, the package aborts the pending request via `AbortSignal` and starts a fresh flow.
 
 ## Key Technical Details
 
@@ -259,9 +295,13 @@ User                        Package                         LLM
 | time → pixel | `chart.timeScale().timeToCoordinate(time)` |
 | price → pixel | `series.priceToCoordinate(price)` |
 
+**Edge-of-chart handling:** When dragging past the latest data point, `coordinateToTime()` returns `null`. The range-selector tracks the last valid `toTime` during mousemove and uses it as a fallback on mouseup.
+
 ### Selection Highlight via Series Primitive
 
-The selection highlight is implemented as an `ISeriesPrimitive` attached to the series via `attachPrimitive()`. This ensures the highlight automatically follows chart zoom and pan through the `updateAllViews()` lifecycle hook. The primitive draws a semi-transparent rectangle on the canvas between the selected time range.
+The selection highlight is implemented as an `ISeriesPrimitive` attached to the series via `attachPrimitive()`. This ensures the highlight automatically follows chart zoom and pan through the `updateAllViews()` lifecycle hook.
+
+The primitive's `paneViews()` returns views where `renderer()` is a **method** (not a property) that returns the renderer object — this is the Lightweight Charts v5 API contract. The renderer uses `target.useMediaCoordinateSpace()` to access the canvas context and media dimensions for drawing.
 
 ### Data Extraction
 
@@ -269,7 +309,7 @@ Use `series.data()` to get all data items, then filter by the selected time rang
 
 ### Overlay Rendering & Cleanup
 
-**Price Lines:** `series.createPriceLine()` returns an `IPriceLine` reference. `overlay-renderer.ts` must store all created references in an array. `clearOverlays()` iterates this array and calls `series.removePriceLine(ref)` for each.
+**Price Lines:** `series.createPriceLine()` returns an `IPriceLine` reference. `overlay-renderer.ts` stores all created references using immutable spread assignment. `clearOverlays()` iterates this array and calls `series.removePriceLine(ref)` for each.
 
 **Markers (v5 Plugin API):** In Lightweight Charts v5, markers use a plugin-based API via `createSeriesMarkers(series)` which returns an `ISeriesMarkersPluginApi`. Call `setMarkers(data)` on the plugin instance to set markers, and `detach()` to remove them. The plugin instance is created once and reused; `clearOverlays()` calls `detach()` and nulls the reference.
 
@@ -277,15 +317,20 @@ Use `series.data()` to get all data items, then filter by the selected time rang
 
 The built-in providers include a system prompt that instructs the LLM to return valid JSON matching the `AnalysisResult` schema. Advanced users can override via `systemPrompt` option on the provider factory (e.g., `createAnthropicProvider({ systemPrompt: '...' })`).
 
-Response validation: `JSON.parse()` + schema check + fallback error handling to prevent malformed LLM responses from breaking the flow. On validation failure, emit an `'error'` event with a descriptive message.
+Response validation: `JSON.parse()` first, then fallback regex extraction for JSON embedded in prose (non-greedy, iterates candidates from last to first). Invalid price line/marker entries are filtered out silently. On complete validation failure, emit an `'error'` event with a descriptive message.
 
 ### Explanation Popup
 
 After a successful analysis, if `AnalysisResult.explanation` is present, a small popup is shown:
-- **Position:** Near the selection area, offset to avoid overlapping the prompt input
-- **Dismiss:** Click outside, press Esc, or click a close button
+- **Dismiss:** Press Esc or click close button
 - **Overflow:** Max height with scroll for long explanations
 - **Styling:** Respects the `theme` option (light/dark)
+
+### Prompt Input
+
+- **Position:** Right-center of chart, offset from price scale (`right: 60px`)
+- **Interaction:** `mousedown` event has `stopPropagation` to prevent triggering selection dismiss
+- **Loading state:** Input disabled with "Analyzing..." placeholder during LLM call
 
 ## Package Structure
 
@@ -294,9 +339,10 @@ lightweight-chart-agent-overlay/
 ├── src/
 │   ├── core/
 │   │   ├── agent-overlay.ts          # createAgentOverlay() main entry
+│   │   ├── event-emitter.ts          # typed event emitter (internal)
 │   │   ├── types.ts                  # all public interfaces
 │   │   ├── selection/
-│   │   │   ├── range-selector.ts     # mouse events → drag selection
+│   │   │   ├── range-selector.ts     # mouse events → drag selection + mode toggle
 │   │   │   ├── selection-primitive.ts # Series Primitive highlight
 │   │   │   └── context-builder.ts    # selection → ChartContext
 │   │   ├── overlay/
@@ -305,6 +351,7 @@ lightweight-chart-agent-overlay/
 │   │       ├── prompt-input.ts       # floating prompt input (DOM)
 │   │       └── explanation-popup.ts  # AI explanation display
 │   ├── providers/
+│   │   ├── parse-response.ts         # shared JSON extraction from LLM text
 │   │   ├── anthropic.ts
 │   │   └── openai.ts
 │   ├── react/
@@ -312,8 +359,7 @@ lightweight-chart-agent-overlay/
 │   │   └── use-agent-overlay.ts      # useAgentOverlay hook
 │   └── index.ts                      # core entry
 ├── examples/
-│   ├── vanilla/                      # vanilla JS demo (Vite)
-│   └── react/                        # React demo
+│   └── vanilla/                      # vanilla JS demo (Vite)
 ├── package.json
 ├── tsconfig.json
 ├── tsdown.config.ts
@@ -328,7 +374,7 @@ lightweight-chart-agent-overlay/
 
 | Tool | Purpose |
 |------|---------|
-| tsdown | Bundler — ESM + CJS dual output with .d.ts |
+| tsdown | Bundler — ESM (.mjs) + CJS (.cjs) dual output with .d.mts/.d.cts |
 | oxlint | Linter (Rust-based) |
 | oxfmt | Formatter (Rust-based) — no semi, single quotes, 100 width |
 | vitest | Testing — jsdom, V8 coverage, 80% threshold |
@@ -342,19 +388,19 @@ lightweight-chart-agent-overlay/
 {
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "import": { "types": "./dist/index.d.mts", "default": "./dist/index.mjs" },
       "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
     },
     "./react": {
-      "import": { "types": "./dist/react/index.d.ts", "default": "./dist/react/index.js" },
+      "import": { "types": "./dist/react/index.d.mts", "default": "./dist/react/index.mjs" },
       "require": { "types": "./dist/react/index.d.cts", "default": "./dist/react/index.cjs" }
     },
     "./providers/anthropic": {
-      "import": { "types": "./dist/providers/anthropic.d.ts", "default": "./dist/providers/anthropic.js" },
+      "import": { "types": "./dist/providers/anthropic.d.mts", "default": "./dist/providers/anthropic.mjs" },
       "require": { "types": "./dist/providers/anthropic.d.cts", "default": "./dist/providers/anthropic.cjs" }
     },
     "./providers/openai": {
-      "import": { "types": "./dist/providers/openai.d.ts", "default": "./dist/providers/openai.js" },
+      "import": { "types": "./dist/providers/openai.d.mts", "default": "./dist/providers/openai.mjs" },
       "require": { "types": "./dist/providers/openai.d.cts", "default": "./dist/providers/openai.cjs" }
     }
   },
@@ -368,28 +414,9 @@ lightweight-chart-agent-overlay/
 }
 ```
 
-### tsdown Config
-
-```ts
-{
-  entry: [
-    'src/index.ts',
-    'src/react/index.ts',
-    'src/providers/anthropic.ts',
-    'src/providers/openai.ts',
-  ],
-  format: ['esm', 'cjs'],
-  outDir: 'dist',
-  dts: true,
-  clean: true,
-  treeshake: true,
-  target: 'es2020',
-}
-```
-
 ## Developer Experience
 
-### Vanilla JS (3 lines to start)
+### Vanilla JS
 
 ```ts
 import { createChart, CandlestickSeries } from 'lightweight-charts'
@@ -402,6 +429,14 @@ series.setData(data)
 
 const agent = createAgentOverlay(chart, series, {
   provider: createAnthropicProvider({ apiKey: '...' }),
+})
+
+// Developer controls when selection mode is active
+agent.setSelectionEnabled(true)
+
+// Listen for mode changes
+agent.on('selection-mode-change', (enabled) => {
+  console.log(`Selection: ${enabled ? 'ON' : 'OFF'}`)
 })
 ```
 
@@ -429,11 +464,15 @@ function MyChart() {
     return () => c.remove()
   }, [])
 
-  const { clearOverlays, isAnalyzing, error, lastResult } = useAgentOverlay(chart, series, {
-    provider,
-  })
+  const { clearOverlays, setSelectionEnabled, isAnalyzing, error, lastResult } =
+    useAgentOverlay(chart, series, { provider })
 
-  return <div ref={containerRef} />
+  return (
+    <>
+      <button onClick={() => setSelectionEnabled(true)}>Select</button>
+      <div ref={containerRef} />
+    </>
+  )
 }
 ```
 
@@ -441,11 +480,12 @@ function MyChart() {
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| LLM returns malformed JSON | Overlay rendering fails | Validate response schema; show user-friendly error; emit 'error' event |
+| LLM returns malformed JSON | Overlay rendering fails | Validate response schema with entry-level filtering; emit 'error' event |
 | API key exposed in frontend | Security vulnerability | Document the risk clearly; recommend backend provider for production |
 | Lightweight Charts API changes | Breaking changes | Pin to `^5.0.0`; use only stable documented APIs |
 | Large data range selection | Slow LLM response / token cost | Limit or downsample data points sent to LLM; warn user for large selections |
 | In-flight request during new selection | Stale overlay from old request | AbortSignal cancellation; abort pending request before starting new one |
+| Drag past chart edge | coordinateToTime returns null | Track last valid toTime during mousemove as fallback |
 
 ## Out of Scope (MVP)
 
