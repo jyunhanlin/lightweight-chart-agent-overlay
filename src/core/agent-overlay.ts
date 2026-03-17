@@ -29,16 +29,29 @@ interface SeriesLike {
   data(): readonly Record<string, unknown>[]
 }
 
+function isValidPriceLine(item: unknown): boolean {
+  return typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).price === 'number'
+}
+
+function isValidMarker(item: unknown): boolean {
+  if (typeof item !== 'object' || item === null) return false
+  const m = item as Record<string, unknown>
+  return m.time != null && typeof m.position === 'string' && typeof m.shape === 'string'
+}
+
 function validateResult(raw: unknown): AnalysisResult {
   if (typeof raw !== 'object' || raw === null) {
     throw new Error('Invalid analysis result: expected an object')
   }
   const obj = raw as Record<string, unknown>
 
+  const priceLines = Array.isArray(obj.priceLines) ? obj.priceLines.filter(isValidPriceLine) : undefined
+  const markers = Array.isArray(obj.markers) ? obj.markers.filter(isValidMarker) : undefined
+
   return {
     ...(typeof obj.explanation === 'string' && { explanation: obj.explanation }),
-    ...(Array.isArray(obj.priceLines) && { priceLines: obj.priceLines }),
-    ...(Array.isArray(obj.markers) && { markers: obj.markers }),
+    ...(priceLines && priceLines.length > 0 && { priceLines }),
+    ...(markers && markers.length > 0 && { markers }),
   }
 }
 
