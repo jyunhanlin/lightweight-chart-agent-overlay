@@ -68,6 +68,8 @@ export function createAgentOverlay(
   const historyButton = new HistoryButton(chartEl, theme)
   historyButton.setCount(0)
 
+  let currentHistoryIndex = -1
+
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
     presets: options.presets,
@@ -78,6 +80,54 @@ export function createAgentOverlay(
   explanationPopup.onClose = () => {
     renderer.clear()
     rangeSelector.clearSelection()
+  }
+
+  function showHistoryEntry(index: number): void {
+    const entry = historyStore.get(index)
+    if (!entry) return
+
+    currentHistoryIndex = index
+
+    const position = calculateSmartPosition({
+      chartEl,
+      timeToCoordinate: (time) => chart.timeScale().timeToCoordinate(time),
+      priceToCoordinate: (price) => series.priceToCoordinate(price),
+      range: entry.range,
+      seriesData: series.data(),
+    })
+
+    // Show popup first — this internally calls hide() which triggers onClose,
+    // clearing the previous overlay and selection. Then we render the new state.
+    explanationPopup.show({
+      entry,
+      currentIndex: index,
+      totalCount: historyStore.size(),
+      position,
+    })
+
+    renderer.render(entry.result)
+    rangeSelector.setRange(entry.range as { from: never; to: never })
+  }
+
+  historyButton.onClick = () => {
+    // If popup is already showing, do nothing
+    if (chartEl.querySelector('[data-agent-overlay-explanation]')) return
+
+    // Hide prompt input if showing
+    promptInput.hide()
+
+    // Show most recent entry
+    const latestIndex = historyStore.size() - 1
+    if (latestIndex < 0) return
+
+    showHistoryEntry(latestIndex)
+  }
+
+  explanationPopup.onNavigate = (direction: -1 | 1) => {
+    const targetIndex = currentHistoryIndex + direction
+    if (targetIndex < 0 || targetIndex >= historyStore.size()) return
+
+    showHistoryEntry(targetIndex)
   }
 
   let abortController: AbortController | null = null
@@ -113,6 +163,7 @@ export function createAgentOverlay(
 
       historyStore.push(entry)
       historyButton.setCount(historyStore.size())
+      currentHistoryIndex = historyStore.size() - 1
 
       if (result.explanation) {
         const pos = promptInput.getLastPosition()

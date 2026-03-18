@@ -582,4 +582,440 @@ describe('createAgentOverlay', () => {
       el.remove()
     })
   })
+
+  describe('History navigation', () => {
+    it('history button click when nothing showing restores latest entry', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({
+        explanation: 'Support at 100',
+        priceLines: [{ price: 100, title: 'Support' }],
+      })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // Run an analysis to populate history
+      selectAndSubmit(agent, el, 'Find support')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close the popup (this clears overlays)
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      // Verify popup is gone
+      expect(el.querySelector('[data-agent-overlay-explanation]')).toBeNull()
+
+      // Click history button
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
+      // Popup should reappear with the entry
+      const popup = el.querySelector('[data-agent-overlay-explanation]')
+      expect(popup).not.toBeNull()
+
+      // Overlay should be rendered (renderer.render was called)
+      // The series.createPriceLine proves overlays were re-rendered
+      // (First call from initial analysis, second from history restore)
+      expect(series.createPriceLine).toHaveBeenCalledTimes(2)
+
+      el.remove()
+    })
+
+    it('history button click when prompt showing hides prompt and shows latest entry', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'result' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // Run analysis to populate history
+      selectAndSubmit(agent, el, 'test')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close popup, then open a new selection to show prompt
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 10, 50)
+
+      // Prompt should be showing
+      expect(el.querySelector('[data-agent-overlay-prompt]')).not.toBeNull()
+
+      // Click history button
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
+      // Prompt should be hidden
+      expect(el.querySelector('[data-agent-overlay-prompt]')).toBeNull()
+
+      // Popup should show
+      expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull()
+
+      el.remove()
+    })
+
+    it('history button click when popup already showing is a no-op', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({
+        explanation: 'result',
+        priceLines: [{ price: 100, title: 'S' }],
+      })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'test')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Popup is already showing — clicking history button should be no-op
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      const popupBefore = el.querySelector('[data-agent-overlay-explanation]')
+
+      histBtn.click()
+
+      // Popup should still be the same (no-op)
+      const popupAfter = el.querySelector('[data-agent-overlay-explanation]')
+      expect(popupAfter).not.toBeNull()
+      expect(popupAfter).toBe(popupBefore)
+
+      el.remove()
+    })
+
+    it('navigate forward (onNavigate(1)) switches to next entry', async () => {
+      const el = document.createElement('div')
+      el.style.position = 'relative'
+      document.body.appendChild(el)
+      el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 }) as DOMRect
+
+      const chart = {
+        timeScale: () => ({
+          coordinateToTime: vi.fn((x: number) => x * 10),
+          timeToCoordinate: vi.fn((t: number) => t / 10),
+        }),
+        chartElement: () => el,
+        applyOptions: vi.fn(),
+      }
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'first' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First analysis
+      selectAndSubmit(agent, el, 'first')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close popup
+      const closeBtn1 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn1?.click()
+
+      // Second analysis
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'second',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'second')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // We're at index 1 (latest). Click history button to restore from history
+      // Close popup first, then use history to go back
+      const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn2?.click()
+
+      // Click history button to show latest (index 1)
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
+      // Nav bar should show "2 / 2"
+      await vi.waitFor(() => {
+        const nav = el.querySelector('[data-agent-overlay-nav]')
+        expect(nav).not.toBeNull()
+      })
+
+      // Navigate backward to index 0
+      const prevBtn = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
+      prevBtn?.click()
+
+      // Should now show first entry content
+      await vi.waitFor(() => {
+        const sectionContent = el.querySelector(
+          '[data-agent-overlay-section-content]',
+        ) as HTMLElement
+        expect(sectionContent?.textContent).toContain('first')
+      })
+
+      // Navigate forward back to index 1
+      const nextBtn = el.querySelector('[data-agent-overlay-nav-next]') as HTMLElement
+      nextBtn?.click()
+
+      await vi.waitFor(() => {
+        const sectionContent = el.querySelector(
+          '[data-agent-overlay-section-content]',
+        ) as HTMLElement
+        expect(sectionContent?.textContent).toContain('second')
+      })
+
+      el.remove()
+    })
+
+    it('navigate backward (onNavigate(-1)) switches to previous entry', async () => {
+      const el = document.createElement('div')
+      el.style.position = 'relative'
+      document.body.appendChild(el)
+      el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 }) as DOMRect
+
+      const chart = {
+        timeScale: () => ({
+          coordinateToTime: vi.fn((x: number) => x * 10),
+          timeToCoordinate: vi.fn((t: number) => t / 10),
+        }),
+        chartElement: () => el,
+        applyOptions: vi.fn(),
+      }
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'alpha' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First analysis
+      selectAndSubmit(agent, el, 'alpha prompt')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close and do second analysis
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'beta',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'beta prompt')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Currently showing index 1 (beta). Navigate backward.
+      const prevBtn = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
+      prevBtn?.click()
+
+      // Should show alpha
+      await vi.waitFor(() => {
+        const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+        expect(content?.textContent).toContain('alpha')
+      })
+
+      el.remove()
+    })
+
+    it('navigation at boundaries does nothing', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'only entry' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // Single analysis
+      selectAndSubmit(agent, el, 'test')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // With a single entry, nav bar should not appear (totalCount === 1)
+      // so close and use history button
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
+      // Only 1 entry, so no nav bar, no prev/next buttons
+      const nav = el.querySelector('[data-agent-overlay-nav]')
+      expect(nav).toBeNull()
+
+      // Popup still shows the single entry
+      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      expect(content?.textContent).toContain('only entry')
+
+      el.remove()
+    })
+
+    it('navigation at first entry cannot go further left', async () => {
+      const el = document.createElement('div')
+      el.style.position = 'relative'
+      document.body.appendChild(el)
+      el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 }) as DOMRect
+
+      const chart = {
+        timeScale: () => ({
+          coordinateToTime: vi.fn((x: number) => x * 10),
+          timeToCoordinate: vi.fn((t: number) => t / 10),
+        }),
+        chartElement: () => el,
+        applyOptions: vi.fn(),
+      }
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'first' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // Two analyses
+      selectAndSubmit(agent, el, 'first')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'second',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'second')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Navigate back to first entry (index 0)
+      const prevBtn = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
+      prevBtn?.click()
+
+      await vi.waitFor(() => {
+        const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+        expect(content?.textContent).toContain('first')
+      })
+
+      // Try to navigate further left — should do nothing
+      const prevBtn2 = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
+      prevBtn2?.click()
+
+      // Still showing first entry
+      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      expect(content?.textContent).toContain('first')
+
+      el.remove()
+    })
+
+    it('navigation at last entry cannot go further right', async () => {
+      const el = document.createElement('div')
+      el.style.position = 'relative'
+      document.body.appendChild(el)
+      el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 400 }) as DOMRect
+
+      const chart = {
+        timeScale: () => ({
+          coordinateToTime: vi.fn((x: number) => x * 10),
+          timeToCoordinate: vi.fn((t: number) => t / 10),
+        }),
+        chartElement: () => el,
+        applyOptions: vi.fn(),
+      }
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'first' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // Two analyses
+      selectAndSubmit(agent, el, 'first')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn?.click()
+
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'second',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'second')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Already at last entry (index 1). Try to go right.
+      const nextBtn = el.querySelector('[data-agent-overlay-nav-next]') as HTMLElement
+      nextBtn?.click()
+
+      // Still showing second entry
+      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      expect(content?.textContent).toContain('second')
+
+      el.remove()
+    })
+
+    it('currentHistoryIndex updates after new analysis', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({
+        explanation: 'result one',
+        priceLines: [{ price: 100, title: 'S' }],
+      })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First analysis
+      selectAndSubmit(agent, el, 'first')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close popup
+      const closeBtn1 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn1?.click()
+
+      // Second analysis
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'result two',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'second')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() =>
+        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
+      )
+
+      // Close and click history — should show latest (index 1, "result two")
+      const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn2?.click()
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
+      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      expect(content?.textContent).toContain('result two')
+
+      el.remove()
+    })
+  })
 })
