@@ -408,4 +408,178 @@ describe('createAgentOverlay', () => {
       el.remove()
     })
   })
+
+  describe('HistoryStore & HistoryButton integration', () => {
+    it('pushes history entry after successful analysis', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const result = {
+        explanation: 'Support at 100',
+        priceLines: [{ price: 100, title: 'Support' }],
+      }
+      const provider = createMockProvider(result)
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'Find support')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      // After analysis, history button should be visible with badge count 1
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        expect(histBtn).not.toBeNull()
+        expect(histBtn.style.display).not.toBe('none')
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('1')
+      })
+
+      el.remove()
+    })
+
+    it('updates badge count after multiple analyses', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'result' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First analysis
+      selectAndSubmit(agent, el, 'first')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalledTimes(1)
+      })
+
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('1')
+      })
+
+      // Second analysis — need to re-select range first
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 10, 50)
+      submitPrompt(el, 'second')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalledTimes(2)
+      })
+
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('2')
+      })
+
+      el.remove()
+    })
+
+    it('history button is hidden when no entries', () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider()
+
+      createAgentOverlay(chart as never, series as never, { provider })
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      expect(histBtn).not.toBeNull()
+      expect(histBtn.style.display).toBe('none')
+
+      el.remove()
+    })
+
+    it('closing popup clears overlay but preserves history', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({
+        explanation: 'result',
+        priceLines: [{ price: 100, title: 'S' }],
+      })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      // Verify history button shows count 1
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('1')
+      })
+
+      // Close the popup via its close button
+      const closeBtn = el.querySelector('[data-agent-overlay-popup] button') as HTMLElement
+      if (closeBtn) closeBtn.click()
+
+      // History should still show count 1
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      const badge = histBtn.querySelector('span:last-child') as HTMLElement
+      expect(badge.textContent).toBe('1')
+
+      el.remove()
+    })
+
+    it('new selection clears overlay but preserves history', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'result' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('1')
+      })
+
+      // Make a new selection — should not clear history
+      fireDrag(el, 20, 60)
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      const badge = histBtn.querySelector('span:last-child') as HTMLElement
+      expect(badge.textContent).toBe('1')
+
+      el.remove()
+    })
+
+    it('destroy removes history button from DOM and clears store', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'result' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        expect(histBtn).not.toBeNull()
+        expect(histBtn.style.display).not.toBe('none')
+      })
+
+      agent.destroy()
+
+      // History button should be removed from DOM
+      const histBtn = el.querySelector('[data-agent-overlay-history]')
+      expect(histBtn).toBeNull()
+
+      el.remove()
+    })
+  })
 })

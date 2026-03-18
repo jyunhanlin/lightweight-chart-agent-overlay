@@ -17,6 +17,8 @@ import { OverlayRenderer } from './overlay/overlay-renderer'
 import { PromptInput } from './ui/prompt-input'
 import { ExplanationPopup } from './ui/explanation-popup'
 import { calculateSmartPosition } from './ui/calculate-position'
+import { createHistoryStore } from './history-store'
+import { HistoryButton } from './ui/history-button'
 
 interface ChartLike {
   timeScale(): {
@@ -62,6 +64,10 @@ export function createAgentOverlay(
     chartEl.style.position = 'relative'
   }
 
+  const historyStore = createHistoryStore()
+  const historyButton = new HistoryButton(chartEl, theme)
+  historyButton.setCount(0)
+
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
     presets: options.presets,
@@ -96,20 +102,24 @@ export function createAgentOverlay(
       renderer.clear()
       renderer.render(result)
 
+      const entry = {
+        prompt: params.prompt,
+        isQuickRun: params.isQuickRun,
+        model: params.model,
+        presets: params.presets,
+        result,
+        range: params.currentRange,
+      } as Parameters<typeof explanationPopup.show>[0]['entry']
+
+      historyStore.push(entry)
+      historyButton.setCount(historyStore.size())
+
       if (result.explanation) {
         const pos = promptInput.getLastPosition()
-        const entry = {
-          prompt: params.prompt,
-          isQuickRun: params.isQuickRun,
-          model: params.model,
-          presets: params.presets,
-          result,
-          range: params.currentRange,
-        } as Parameters<typeof explanationPopup.show>[0]['entry']
         explanationPopup.show({
           entry,
-          currentIndex: 0,
-          totalCount: 1,
+          currentIndex: historyStore.size() - 1,
+          totalCount: historyStore.size(),
           position: pos ?? undefined,
         })
       }
@@ -216,6 +226,8 @@ export function createAgentOverlay(
       rangeSelector.destroy()
       promptInput.destroy()
       explanationPopup.destroy()
+      historyButton.destroy()
+      historyStore.clear()
       renderer.clear()
       emitter.removeAll()
     },
