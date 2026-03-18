@@ -19,7 +19,19 @@ export interface ExplanationShowOptions {
 
 const THEME_COLORS: Record<
   Theme,
-  { bg: string; border: string; text: string; closeColor: string; divider: string; tagBg: string }
+  {
+    bg: string
+    border: string
+    text: string
+    closeColor: string
+    divider: string
+    tagBg: string
+    bubbleBg: string
+    bubbleText: string
+    quickBg: string
+    quickBorder: string
+    quickText: string
+  }
 > = {
   dark: {
     bg: '#1e1e2e',
@@ -28,6 +40,11 @@ const THEME_COLORS: Record<
     closeColor: '#888',
     divider: '#333',
     tagBg: '#2a2a3e',
+    bubbleBg: '#2a3a5a',
+    bubbleText: '#8bb8e8',
+    quickBg: '#1a1a2a',
+    quickBorder: '#333',
+    quickText: '#aaa',
   },
   light: {
     bg: '#ffffff',
@@ -36,6 +53,11 @@ const THEME_COLORS: Record<
     closeColor: '#666',
     divider: '#e0e0e0',
     tagBg: '#f0f0f0',
+    bubbleBg: '#e3f2fd',
+    bubbleText: '#1565c0',
+    quickBg: '#f5f5f5',
+    quickBorder: '#ddd',
+    quickText: '#666',
   },
 }
 
@@ -53,6 +75,11 @@ function applyExplanationThemeVars(el: HTMLElement, theme: Theme): void {
   el.style.setProperty('--ao-close', s.closeColor)
   el.style.setProperty('--ao-divider', s.divider)
   el.style.setProperty('--ao-tag-bg', s.tagBg)
+  el.style.setProperty('--ao-bubble-bg', s.bubbleBg)
+  el.style.setProperty('--ao-bubble-text', s.bubbleText)
+  el.style.setProperty('--ao-quick-bg', s.quickBg)
+  el.style.setProperty('--ao-quick-border', s.quickBorder)
+  el.style.setProperty('--ao-quick-text', s.quickText)
 }
 
 function buildNavBar(
@@ -150,7 +177,7 @@ function buildPromptBubble(prompt: string): HTMLElement {
   bubble.setAttribute('data-agent-overlay-prompt-bubble', '')
   bubble.textContent = prompt
   bubble.style.cssText = `
-    background: #2a3a5a; color: #8bb8e8;
+    background: var(--ao-bubble-bg); color: var(--ao-bubble-text);
     border-radius: 8px 8px 2px 8px;
     padding: 6px 10px; font-size: 12px; line-height: 1.4;
     max-width: 90%; word-break: break-word;
@@ -172,8 +199,8 @@ function buildQuickIndicator(entry: HistoryEntry): HTMLElement {
 
   bar.textContent = parts.join(' . ')
   bar.style.cssText = `
-    background: #1a1a2a; border: 1px solid #333;
-    padding: 5px 12px; font-size: 11px; color: #aaa;
+    background: var(--ao-quick-bg); border: 1px solid var(--ao-quick-border);
+    padding: 5px 12px; font-size: 11px; color: var(--ao-quick-text);
     margin: 6px 12px 2px; border-radius: 4px;
   `
 
