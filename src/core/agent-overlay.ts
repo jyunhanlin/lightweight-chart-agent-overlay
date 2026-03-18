@@ -74,6 +74,7 @@ export function createAgentOverlay(
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
     presets: options.presets,
+    defaultPresetIndices: options.defaultPresetIndices,
     theme,
   })
   const explanationPopup = new ExplanationPopup(chartEl, theme)

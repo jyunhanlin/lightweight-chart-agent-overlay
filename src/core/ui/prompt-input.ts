@@ -1,5 +1,6 @@
 // src/core/ui/prompt-input.ts
 import type { UIPosition } from './calculate-position'
+import { clampToViewport } from './calculate-position'
 import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
@@ -36,6 +37,7 @@ const ERROR_DISMISS_MS = 5000
 export interface PromptInputOptions {
   readonly models?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
+  readonly defaultPresetIndices?: readonly number[]
   readonly theme?: Theme
 }
 
@@ -44,6 +46,7 @@ export class PromptInput {
   private readonly theme: Theme
   private readonly models: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
+  private readonly defaultPresetIndices: readonly number[]
 
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
@@ -62,6 +65,7 @@ export class PromptInput {
     this.theme = options?.theme ?? 'dark'
     this.models = options?.models ?? []
     this.presets = options?.presets ?? []
+    this.defaultPresetIndices = options?.defaultPresetIndices ?? []
   }
 
   show(position?: UIPosition): void {
@@ -79,7 +83,7 @@ export class PromptInput {
       z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
       border-radius: 8px; overflow: visible;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      cursor: grab; min-width: 420px;
+      cursor: grab; min-width: 420px; max-width: 520px;
     `
 
     // ── Close button (top-right) ────────────────────────────────────────────
@@ -99,8 +103,8 @@ export class PromptInput {
 
     // ── Textarea ───────────────────────────────────────────────────────────
     const textarea = document.createElement('textarea')
-    textarea.placeholder = 'Ask about this range...'
-    textarea.rows = 3
+    textarea.placeholder = 'Ask about this range, or leave empty to run presets'
+    textarea.rows = 2
     textarea.style.cssText = `
       display: block; width: 100%; box-sizing: border-box;
       background: transparent; border: none; outline: none;
@@ -113,11 +117,16 @@ export class PromptInput {
     toolbar.style.cssText = `
       display: flex; align-items: center; gap: 6px;
       padding: 6px 10px; border-top: 1px solid ${s.border};
-      background: ${s.toolbar};
+      background: ${s.toolbar}; border-radius: 0 0 8px 8px;
     `
 
     // Dropdown manager for mutual exclusion
     this.dropdownManager = new DropdownManager()
+
+    // Close dropdowns when textarea gains focus
+    textarea.addEventListener('focus', () => {
+      this.dropdownManager?.closeAll()
+    })
 
     // Model dropdown
     if (this.models.length > 0) {
@@ -133,41 +142,17 @@ export class PromptInput {
       this.dropdownManager.register(this.modelDropdown)
       modelWrapper.appendChild(this.modelDropdown.element)
       toolbar.appendChild(modelWrapper)
+
+      // Pre-select first model
+      if (this.models.length > 0) {
+        this.modelDropdown.setSelected([this.models[0].id])
+      }
     }
 
-    // Preset dropdown
-    if (this.presets.length > 0) {
-      const presetWrapper = document.createElement('span')
-      presetWrapper.setAttribute('data-agent-overlay-preset-dropdown', '')
-      this.presetDropdown = new Dropdown({
-        items: this.presets.map((p, i) => ({ id: `preset-${i}`, label: p.label })),
-        theme: this.theme,
-        multiSelect: true,
-        showRun: true,
-        placeholder: 'Presets',
-        manager: this.dropdownManager,
-        onRun: (selected) => {
-          const selectedPresets = selected.map((item) => {
-            const idx = parseInt(item.id.replace('preset-', ''), 10)
-            return this.presets[idx]
-          })
-          this.onQuickRun?.(selectedPresets)
-        },
-      })
-      this.dropdownManager.register(this.presetDropdown)
-      presetWrapper.appendChild(this.presetDropdown.element)
-      toolbar.appendChild(presetWrapper)
-    }
-
-    // Spacer
-    const spacer = document.createElement('div')
-    spacer.style.cssText = 'flex: 1'
-    toolbar.appendChild(spacer)
-
-    // Submit button
+    // Submit button (created early so updateSubmitState can reference it)
     const submitBtn = document.createElement('button')
     submitBtn.setAttribute('data-agent-overlay-submit', '')
-    submitBtn.textContent = '↑'
+    submitBtn.textContent = '\u2191'
     submitBtn.style.cssText = `
       width: 28px; height: 28px; border-radius: 50%; border: none;
       background: ${SUBMIT_INACTIVE_BG}; color: #fff;
@@ -178,16 +163,57 @@ export class PromptInput {
 
     const updateSubmitState = () => {
       const hasText = textarea.value.trim().length > 0
-      submitBtn.style.background = hasText ? SUBMIT_ACTIVE_BG : SUBMIT_INACTIVE_BG
+      const hasPresets = this.presetDropdown ? this.presetDropdown.getSelected().length > 0 : false
+      submitBtn.style.background = hasText || hasPresets ? SUBMIT_ACTIVE_BG : SUBMIT_INACTIVE_BG
     }
 
     textarea.addEventListener('input', updateSubmitState)
+
+    // Preset dropdown
+    if (this.presets.length > 0) {
+      const presetWrapper = document.createElement('span')
+      presetWrapper.setAttribute('data-agent-overlay-preset-dropdown', '')
+      this.presetDropdown = new Dropdown({
+        items: this.presets.map((p, i) => ({ id: `preset-${i}`, label: p.label })),
+        theme: this.theme,
+        multiSelect: true,
+        placeholder: 'Presets',
+        manager: this.dropdownManager,
+        onSelect: () => updateSubmitState(),
+      })
+      this.dropdownManager.register(this.presetDropdown)
+      presetWrapper.appendChild(this.presetDropdown.element)
+      toolbar.appendChild(presetWrapper)
+
+      // Apply default preset selection
+      if (this.defaultPresetIndices.length > 0) {
+        const defaultIds = this.defaultPresetIndices
+          .filter((i) => i >= 0 && i < this.presets.length)
+          .map((i) => `preset-${i}`)
+        this.presetDropdown.setSelected(defaultIds)
+        updateSubmitState()
+      }
+    }
+
+    // Spacer
+    const spacer = document.createElement('div')
+    spacer.style.cssText = 'flex: 1'
+    toolbar.appendChild(spacer)
+
+    // Keyboard hint
+    const hint = document.createElement('span')
+    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
+    hint.textContent = `${modKey}\u21b5`
+    hint.style.cssText = `color: ${s.hint}; font-size: 11px; flex-shrink: 0;`
+    toolbar.appendChild(hint)
 
     submitBtn.addEventListener('click', () => {
       const value = textarea.value.trim()
       if (value) {
         this.clearError()
         this.onSubmit?.(value)
+      } else {
+        fireQuickRun()
       }
     })
 
@@ -230,14 +256,25 @@ export class PromptInput {
       document.head.appendChild(style)
     }
 
+    const fireQuickRun = () => {
+      const selectedPresets = this.getSelectedPresets()
+      if (selectedPresets.length === 0) return
+      // Show what will be sent as feedback
+      textarea.value = selectedPresets.map((p) => p.defaultPrompt).join('\n')
+      this.clearError()
+      this.onQuickRun?.(selectedPresets)
+    }
+
     // ── Keyboard handlers ───────────────────────────────────────────────────
     textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         const value = textarea.value.trim()
         if (value) {
           this.clearError()
           this.onSubmit?.(value)
+        } else {
+          fireQuickRun()
         }
       } else if (e.key === 'Escape') {
         this.hide()
@@ -256,9 +293,12 @@ export class PromptInput {
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
 
+    // Clamp to viewport
+    clampToViewport(wrapper)
+
     // Make draggable — exclude interactive children
     this.cleanupDrag = makeDraggable(wrapper, {
-      exclude: 'textarea, button, [data-dropdown-trigger]',
+      exclude: 'textarea:not(:disabled), button, [data-dropdown-trigger]',
       onDragEnd: (pos) => {
         this.lastPosition = pos
       },
@@ -331,6 +371,7 @@ export class PromptInput {
 
     if (ta) {
       ta.disabled = loading
+      ta.style.pointerEvents = loading ? 'none' : 'auto'
     }
     if (toolbar) {
       toolbar.style.display = loading ? 'none' : 'flex'

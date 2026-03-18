@@ -72,7 +72,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
         },
         body: JSON.stringify({
           model: requestModel,
-          max_tokens: 1024,
+          max_tokens: 4096,
           system: finalSystemPrompt,
           messages: [{ role: 'user', content: userMessage }],
         }),

@@ -138,6 +138,7 @@ export interface AgentOverlayOptions {
   readonly provider: LLMProvider
   readonly dataAccessor?: DataAccessor
   readonly presets?: readonly AnalysisPreset[]
+  readonly defaultPresetIndices?: readonly number[]
   readonly promptBuilder?: PromptBuilder
   readonly ui?: AgentOverlayUIOptions
 }

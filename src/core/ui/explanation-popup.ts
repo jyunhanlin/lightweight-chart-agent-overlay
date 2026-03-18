@@ -1,6 +1,6 @@
 // src/core/ui/explanation-popup.ts
 import type { HistoryEntry } from '../types'
-import { ESTIMATED_UI_HEIGHT, type UIPosition } from './calculate-position'
+import { ESTIMATED_UI_HEIGHT, UI_PADDING, clampToViewport, type UIPosition } from './calculate-position'
 import { makeDraggable } from './make-draggable'
 
 type Theme = 'light' | 'dark'
@@ -53,6 +53,8 @@ function buildNavBar(
   nav.style.cssText = `
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 8px; border-bottom: 1px solid ${s.divider}; gap: 4px;
+    position: sticky; top: 0; z-index: 1; background: ${s.bg};
+    border-radius: 6px 6px 0 0;
   `
 
   // Left side: prev + counter + next
@@ -108,6 +110,8 @@ function buildCloseButtonOnly(s: (typeof THEME_COLORS)[Theme], onClose: () => vo
   row.style.cssText = `
     display: flex; justify-content: flex-end;
     padding: 4px 8px 0;
+    position: sticky; top: 0; z-index: 1; background: ${s.bg};
+    border-radius: 6px 6px 0 0;
   `
 
   const closeBtn = document.createElement('button')
@@ -263,7 +267,7 @@ export class ExplanationPopup {
     wrapper.setAttribute('data-agent-overlay-explanation', '')
     wrapper.style.cssText = `
       position: absolute; z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
-      border-radius: 6px; max-width: 320px; max-height: 400px;
+      border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
       overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       color: ${s.text}; font-size: 13px; cursor: grab;
     `
@@ -304,6 +308,9 @@ export class ExplanationPopup {
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
     document.addEventListener('keydown', this.handleEscape)
+
+    // Clamp to viewport
+    clampToViewport(wrapper)
 
     // Make draggable (exclude buttons from triggering drag)
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })

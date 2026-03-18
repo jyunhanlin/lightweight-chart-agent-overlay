@@ -93,3 +93,39 @@ export function calculateSmartPosition(ctx: PositionContext): UIPosition {
 
   return { left, top }
 }
+
+/**
+ * Adjust an absolutely-positioned element so it stays within the viewport.
+ * Call after the element is appended to the DOM.
+ */
+export function clampToViewport(element: HTMLElement): void {
+  const rect = element.getBoundingClientRect()
+  // Skip if layout hasn't been computed (e.g., JSDOM)
+  if (rect.width === 0 && rect.height === 0) return
+
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  let adjustLeft = 0
+  let adjustTop = 0
+
+  if (rect.right > vw - UI_PADDING) {
+    adjustLeft = vw - UI_PADDING - rect.right
+  }
+  if (rect.bottom > vh - UI_PADDING) {
+    adjustTop = vh - UI_PADDING - rect.bottom
+  }
+  if (rect.left < UI_PADDING) {
+    adjustLeft = UI_PADDING - rect.left
+  }
+  if (rect.top < UI_PADDING) {
+    adjustTop = UI_PADDING - rect.top
+  }
+
+  if (adjustLeft !== 0 || adjustTop !== 0) {
+    const currentLeft = parseFloat(element.style.left) || 0
+    const currentTop = parseFloat(element.style.top) || 0
+    element.style.left = `${currentLeft + adjustLeft}px`
+    element.style.top = `${currentTop + adjustTop}px`
+  }
+}

@@ -76,7 +76,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
             { role: 'system', content: finalSystemPrompt },
             { role: 'user', content: userMessage },
           ],
-          max_tokens: 1024,
+          max_tokens: 4096,
         }),
         signal,
       })

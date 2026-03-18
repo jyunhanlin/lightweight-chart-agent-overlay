@@ -52,7 +52,7 @@ describe('PromptInput', () => {
 
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     ta.value = 'Draw support lines'
-    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
 
     expect(onSubmit).toHaveBeenCalledWith('Draw support lines')
     prompt.destroy()
@@ -278,24 +278,21 @@ describe('PromptInput', () => {
 
   // ── onQuickRun ─────────────────────────────────────────────────────────────
 
-  it('onQuickRun fires when preset Run button is clicked', () => {
+  it('onQuickRun fires via Cmd+Enter when no text but presets selected', () => {
     const prompt = new PromptInput(container, { presets: PRESETS })
     const onQuickRun = vi.fn()
     prompt.onQuickRun = onQuickRun
     prompt.show()
 
-    // Open preset dropdown
+    // Open preset dropdown and select a preset
     const trigger = container.querySelector('[data-dropdown-trigger]') as HTMLButtonElement
     trigger.click()
-
-    // Select a preset
     const firstItem = document.querySelector('[data-dropdown-item="preset-0"]') as HTMLElement
     firstItem.click()
 
-    // Click Run button
-    const runBtn = document.querySelector('[data-dropdown-run]') as HTMLButtonElement
-    expect(runBtn).not.toBeNull()
-    runBtn.click()
+    // Cmd+Enter with empty textarea triggers quick run
+    const ta = container.querySelector('textarea') as HTMLTextAreaElement
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
 
     expect(onQuickRun).toHaveBeenCalled()
     const calledWith = onQuickRun.mock.calls[0][0] as readonly AnalysisPreset[]
