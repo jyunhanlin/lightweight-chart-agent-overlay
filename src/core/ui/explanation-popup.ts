@@ -7,8 +7,7 @@ import {
   type UIPosition,
 } from './calculate-position'
 import { makeDraggable } from './make-draggable'
-
-type Theme = 'light' | 'dark'
+import { type Theme, applyThemeVars } from './theme'
 
 export interface ExplanationShowOptions {
   readonly entry: HistoryEntry
@@ -17,69 +16,10 @@ export interface ExplanationShowOptions {
   readonly position?: UIPosition
 }
 
-const THEME_COLORS: Record<
-  Theme,
-  {
-    bg: string
-    border: string
-    text: string
-    closeColor: string
-    divider: string
-    tagBg: string
-    bubbleBg: string
-    bubbleText: string
-    quickBg: string
-    quickBorder: string
-    quickText: string
-  }
-> = {
-  dark: {
-    bg: '#1e1e2e',
-    border: '#444',
-    text: '#e0e0e0',
-    closeColor: '#888',
-    divider: '#333',
-    tagBg: '#2a2a3e',
-    bubbleBg: '#2a3a5a',
-    bubbleText: '#8bb8e8',
-    quickBg: '#1a1a2a',
-    quickBorder: '#333',
-    quickText: '#aaa',
-  },
-  light: {
-    bg: '#ffffff',
-    border: '#ccc',
-    text: '#1a1a1a',
-    closeColor: '#666',
-    divider: '#e0e0e0',
-    tagBg: '#f0f0f0',
-    bubbleBg: '#e3f2fd',
-    bubbleText: '#1565c0',
-    quickBg: '#f5f5f5',
-    quickBorder: '#ddd',
-    quickText: '#666',
-  },
-}
-
 const SECTION_LABEL_COLORS = ['#7eb8f7', '#f7a87e', '#7ef7b8', '#f77eb8', '#b87ef7']
 
 function getLabelColor(index: number): string {
   return SECTION_LABEL_COLORS[index % SECTION_LABEL_COLORS.length]
-}
-
-function applyExplanationThemeVars(el: HTMLElement, theme: Theme): void {
-  const s = THEME_COLORS[theme]
-  el.style.setProperty('--ao-bg', s.bg)
-  el.style.setProperty('--ao-border', s.border)
-  el.style.setProperty('--ao-text', s.text)
-  el.style.setProperty('--ao-close', s.closeColor)
-  el.style.setProperty('--ao-divider', s.divider)
-  el.style.setProperty('--ao-tag-bg', s.tagBg)
-  el.style.setProperty('--ao-bubble-bg', s.bubbleBg)
-  el.style.setProperty('--ao-bubble-text', s.bubbleText)
-  el.style.setProperty('--ao-quick-bg', s.quickBg)
-  el.style.setProperty('--ao-quick-border', s.quickBorder)
-  el.style.setProperty('--ao-quick-text', s.quickText)
 }
 
 function buildNavBar(
@@ -303,7 +243,7 @@ export class ExplanationPopup {
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-explanation', '')
-    applyExplanationThemeVars(wrapper, this.theme)
+    applyThemeVars(wrapper, this.theme)
     wrapper.style.cssText += `
       position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
       border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
@@ -358,7 +298,7 @@ export class ExplanationPopup {
     if (this.theme === theme) return
     this.theme = theme
     if (this.wrapper) {
-      applyExplanationThemeVars(this.wrapper, theme)
+      applyThemeVars(this.wrapper, theme)
     }
   }
 

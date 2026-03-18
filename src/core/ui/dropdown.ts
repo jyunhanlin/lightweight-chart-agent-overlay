@@ -1,6 +1,6 @@
 // src/core/ui/dropdown.ts
 
-type Theme = 'light' | 'dark'
+import { type Theme, THEMES, applyThemeVars } from './theme'
 
 interface DropdownItem {
   readonly id: string
@@ -18,58 +18,9 @@ interface DropdownOptions {
   readonly manager?: { closeAllExcept(keep: Dropdown): void }
 }
 
-const THEME_COLORS: Record<
-  Theme,
-  {
-    bg: string
-    border: string
-    text: string
-    hoverBg: string
-    selectedText: string
-    selectedBg: string
-    selectedBorder: string
-    dimText: string
-    btnBg: string
-    runColor: string
-    runBg: string
-    disabledText: string
-  }
-> = {
-  dark: {
-    bg: '#252535',
-    border: '#444',
-    text: '#e0e0e0',
-    hoverBg: '#2a3a5a',
-    selectedText: '#4ade80',
-    selectedBg: '#1a3a2a',
-    selectedBorder: '#2a4a3a',
-    dimText: '#666',
-    btnBg: '#2a2a3a',
-    runColor: '#2196f3',
-    runBg: '#1a2a4a',
-    disabledText: '#555',
-  },
-  light: {
-    bg: '#f5f5f5',
-    border: '#ccc',
-    text: '#1a1a1a',
-    hoverBg: '#e8eef8',
-    selectedText: '#16a34a',
-    selectedBg: '#f0fdf4',
-    selectedBorder: '#bbf7d0',
-    dimText: '#aaa',
-    btnBg: '#efefef',
-    runColor: '#1976d2',
-    runBg: '#e3f2fd',
-    disabledText: '#bbb',
-  },
-}
-
-function applyButtonThemeVars(el: HTMLElement, theme: Theme): void {
-  const s = THEME_COLORS[theme]
-  el.style.setProperty('--dd-btn-bg', s.btnBg)
-  el.style.setProperty('--dd-border', s.border)
-  el.style.setProperty('--dd-text', s.text)
+function getDropdownColors(theme: Theme) {
+  const { base, dropdown } = THEMES[theme]
+  return { ...base, ...dropdown }
 }
 
 function buildButtonLabel(
@@ -128,7 +79,7 @@ export class Dropdown {
   private buildButton(): HTMLElement {
     const btn = document.createElement('button')
     btn.setAttribute('data-dropdown-trigger', '')
-    applyButtonThemeVars(btn, this.theme)
+    applyThemeVars(btn, this.theme)
     btn.style.cssText += `
       background: var(--dd-btn-bg); border: 1px solid var(--dd-border); color: var(--dd-text);
       border-radius: 4px; padding: 4px 10px; font-size: 13px; cursor: pointer;
@@ -143,7 +94,7 @@ export class Dropdown {
   }
 
   private buildPanel(): HTMLElement {
-    const s = THEME_COLORS[this.theme]
+    const s = getDropdownColors(this.theme)
     const panel = document.createElement('div')
     panel.setAttribute('data-dropdown-panel', '')
     panel.style.cssText = `
@@ -166,7 +117,7 @@ export class Dropdown {
     return panel
   }
 
-  private buildItem(item: DropdownItem, s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+  private buildItem(item: DropdownItem, s: ReturnType<typeof getDropdownColors>): HTMLElement {
     const row = document.createElement('div')
     row.setAttribute('data-dropdown-item', item.id)
     const isSelected = this.selectedIds.has(item.id)
@@ -212,7 +163,7 @@ export class Dropdown {
     return row
   }
 
-  private buildRunButton(s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+  private buildRunButton(s: ReturnType<typeof getDropdownColors>): HTMLElement {
     const hasSelection = this.selectedIds.size > 0
     const btn = document.createElement('button')
     btn.setAttribute('data-dropdown-run', '')
@@ -266,7 +217,7 @@ export class Dropdown {
 
   private refreshPanel(): void {
     if (!this.panel) return
-    const s = THEME_COLORS[this.theme]
+    const s = getDropdownColors(this.theme)
     const runBtn = this.panel.querySelector('[data-dropdown-run]')
     const items = Array.from(this.panel.querySelectorAll('[data-dropdown-item]'))
     for (const item of items) {
@@ -337,7 +288,7 @@ export class Dropdown {
   setTheme(theme: Theme): void {
     if (this.theme === theme) return
     this.theme = theme
-    applyButtonThemeVars(this.element, theme)
+    applyThemeVars(this.element, theme)
     // Close panel — next open will use new theme
     this.close()
   }

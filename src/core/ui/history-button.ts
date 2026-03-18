@@ -1,26 +1,6 @@
 // src/core/ui/history-button.ts
 
-type Theme = 'light' | 'dark'
-
-const THEME_STYLES: Record<
-  Theme,
-  { bg: string; border: string; text: string; badge: string; badgeText: string }
-> = {
-  dark: {
-    bg: '#2a2a3a',
-    border: '#444',
-    text: '#888',
-    badge: '#333',
-    badgeText: '#555',
-  },
-  light: {
-    bg: '#f0f0f0',
-    border: '#ccc',
-    text: '#666',
-    badge: '#ddd',
-    badgeText: '#999',
-  },
-}
+import { type Theme, THEMES } from './theme'
 
 export class HistoryButton {
   private readonly el: HTMLButtonElement
@@ -29,7 +9,7 @@ export class HistoryButton {
   onClick: (() => void) | null = null
 
   constructor(container: HTMLElement, theme: Theme = 'dark') {
-    const s = THEME_STYLES[theme]
+    const s = THEMES[theme].history
 
     const el = document.createElement('button')
     el.setAttribute('data-agent-overlay-history', '')
@@ -39,7 +19,7 @@ export class HistoryButton {
       right: 8px;
       z-index: 999;
       background: ${s.bg};
-      border: 1px solid ${s.border};
+      border: 1px solid ${THEMES[theme].base.border};
       border-radius: 6px;
       padding: 4px 10px;
       color: ${s.text};
@@ -56,7 +36,7 @@ export class HistoryButton {
     badge.style.cssText = `
       font-size: 10px;
       color: ${s.badgeText};
-      background: ${s.badge};
+      background: ${s.badgeBg};
       padding: 0 5px;
       border-radius: 8px;
       margin-left: 4px;
@@ -76,12 +56,12 @@ export class HistoryButton {
   }
 
   setTheme(theme: Theme): void {
-    const s = THEME_STYLES[theme]
+    const s = THEMES[theme].history
     this.el.style.background = s.bg
-    this.el.style.borderColor = s.border
+    this.el.style.borderColor = THEMES[theme].base.border
     this.el.style.color = s.text
     this.badge.style.color = s.badgeText
-    this.badge.style.background = s.badge
+    this.badge.style.background = s.badgeBg
   }
 
   setCount(count: number): void {

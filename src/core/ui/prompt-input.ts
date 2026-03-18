@@ -5,44 +5,11 @@ import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
 import { DropdownManager } from './dropdown-manager'
-
-type Theme = 'light' | 'dark'
-
-const THEME_STYLES: Record<
-  Theme,
-  { bg: string; border: string; text: string; hint: string; progressBar: string; toolbar: string }
-> = {
-  dark: {
-    bg: '#1e1e2e',
-    border: '#444',
-    text: '#e0e0e0',
-    hint: '#555',
-    progressBar: '#2196f3',
-    toolbar: '#181828',
-  },
-  light: {
-    bg: '#ffffff',
-    border: '#ccc',
-    text: '#1a1a1a',
-    hint: '#aaa',
-    progressBar: '#1976d2',
-    toolbar: '#f5f5f5',
-  },
-}
+import { type Theme, applyThemeVars } from './theme'
 
 const SUBMIT_ACTIVE_BG = '#2196f3'
 const SUBMIT_INACTIVE_BG = '#555'
 const ERROR_DISMISS_MS = 5000
-
-function applyThemeVars(el: HTMLElement, theme: Theme): void {
-  const s = THEME_STYLES[theme]
-  el.style.setProperty('--ao-bg', s.bg)
-  el.style.setProperty('--ao-border', s.border)
-  el.style.setProperty('--ao-text', s.text)
-  el.style.setProperty('--ao-hint', s.hint)
-  el.style.setProperty('--ao-progress', s.progressBar)
-  el.style.setProperty('--ao-toolbar', s.toolbar)
-}
 
 export interface PromptInputOptions {
   readonly models?: readonly ModelOption[]
