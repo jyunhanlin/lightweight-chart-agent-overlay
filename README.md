@@ -1,6 +1,6 @@
 # lightweight-chart-agent-overlay
 
-AI-powered analysis overlay for [TradingView Lightweight Charts](https://github.com/nicholasgasior/lightweight-charts) v5. Select a range of candlesticks, ask a question (or run preset analysis), and get structured results rendered as price lines, markers, and explanation popups — all driven by any LLM provider.
+AI-powered analysis overlay for [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts) v5. Select a range of candlesticks, ask a question (or run preset analysis), and get structured results rendered as price lines, markers, and explanation popups — all driven by any LLM provider.
 
 ## Install
 
