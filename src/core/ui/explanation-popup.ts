@@ -45,8 +45,17 @@ function getLabelColor(index: number): string {
   return SECTION_LABEL_COLORS[index % SECTION_LABEL_COLORS.length]
 }
 
+function applyExplanationThemeVars(el: HTMLElement, theme: Theme): void {
+  const s = THEME_COLORS[theme]
+  el.style.setProperty('--ao-bg', s.bg)
+  el.style.setProperty('--ao-border', s.border)
+  el.style.setProperty('--ao-text', s.text)
+  el.style.setProperty('--ao-close', s.closeColor)
+  el.style.setProperty('--ao-divider', s.divider)
+  el.style.setProperty('--ao-tag-bg', s.tagBg)
+}
+
 function buildNavBar(
-  s: (typeof THEME_COLORS)[Theme],
   currentIndex: number,
   totalCount: number,
   onPrev: () => void,
@@ -57,12 +66,11 @@ function buildNavBar(
   nav.setAttribute('data-agent-overlay-nav', '')
   nav.style.cssText = `
     display: flex; align-items: center; justify-content: space-between;
-    padding: 4px 8px; border-bottom: 1px solid ${s.divider}; gap: 4px;
-    position: sticky; top: 0; z-index: 1; background: ${s.bg};
+    padding: 4px 8px; border-bottom: 1px solid var(--ao-divider); gap: 4px;
+    position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
     border-radius: 6px 6px 0 0;
   `
 
-  // Left side: prev + counter + next
   const navLeft = document.createElement('div')
   navLeft.style.cssText = 'display: flex; align-items: center; gap: 4px;'
 
@@ -72,12 +80,12 @@ function buildNavBar(
   prevBtn.disabled = currentIndex === 0
   prevBtn.style.cssText = `
     background: none; border: none; cursor: ${currentIndex === 0 ? 'default' : 'pointer'};
-    color: ${currentIndex === 0 ? s.closeColor : s.text}; font-size: 14px; padding: 0 4px;
+    color: ${currentIndex === 0 ? 'var(--ao-close)' : 'var(--ao-text)'}; font-size: 14px; padding: 0 4px;
   `
   prevBtn.addEventListener('click', onPrev)
 
   const counter = document.createElement('span')
-  counter.style.cssText = `color: ${s.text}; font-size: 12px;`
+  counter.style.cssText = 'color: var(--ao-text); font-size: 12px;'
   counter.textContent = `${currentIndex + 1} / ${totalCount}`
 
   const nextBtn = document.createElement('button')
@@ -86,7 +94,7 @@ function buildNavBar(
   nextBtn.disabled = currentIndex >= totalCount - 1
   nextBtn.style.cssText = `
     background: none; border: none; cursor: ${currentIndex >= totalCount - 1 ? 'default' : 'pointer'};
-    color: ${currentIndex >= totalCount - 1 ? s.closeColor : s.text}; font-size: 14px; padding: 0 4px;
+    color: ${currentIndex >= totalCount - 1 ? 'var(--ao-close)' : 'var(--ao-text)'}; font-size: 14px; padding: 0 4px;
   `
   nextBtn.addEventListener('click', onNext)
 
@@ -94,12 +102,11 @@ function buildNavBar(
   navLeft.appendChild(counter)
   navLeft.appendChild(nextBtn)
 
-  // Right side: close button
   const closeBtn = document.createElement('button')
   closeBtn.setAttribute('data-agent-overlay-close', '')
   closeBtn.textContent = '\u00d7'
   closeBtn.style.cssText = `
-    background: none; border: none; color: ${s.closeColor}; cursor: pointer;
+    background: none; border: none; color: var(--ao-close); cursor: pointer;
     font-size: 16px; padding: 0 4px; margin-left: auto;
   `
   closeBtn.addEventListener('click', onClose)
@@ -110,12 +117,12 @@ function buildNavBar(
   return nav
 }
 
-function buildCloseButtonOnly(s: (typeof THEME_COLORS)[Theme], onClose: () => void): HTMLElement {
+function buildCloseButtonOnly(onClose: () => void): HTMLElement {
   const row = document.createElement('div')
   row.style.cssText = `
     display: flex; justify-content: flex-end;
     padding: 4px 8px 0;
-    position: sticky; top: 0; z-index: 1; background: ${s.bg};
+    position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
     border-radius: 6px 6px 0 0;
   `
 
@@ -123,7 +130,7 @@ function buildCloseButtonOnly(s: (typeof THEME_COLORS)[Theme], onClose: () => vo
   closeBtn.setAttribute('data-agent-overlay-close', '')
   closeBtn.textContent = '\u00d7'
   closeBtn.style.cssText = `
-    background: none; border: none; color: ${s.closeColor}; cursor: pointer;
+    background: none; border: none; color: var(--ao-close); cursor: pointer;
     font-size: 16px; padding: 0 4px;
   `
   closeBtn.addEventListener('click', onClose)
@@ -132,7 +139,7 @@ function buildCloseButtonOnly(s: (typeof THEME_COLORS)[Theme], onClose: () => vo
   return row
 }
 
-function buildPromptBubble(prompt: string, _s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildPromptBubble(prompt: string): HTMLElement {
   const wrapper = document.createElement('div')
   wrapper.style.cssText = `
     display: flex; justify-content: flex-end;
@@ -153,7 +160,7 @@ function buildPromptBubble(prompt: string, _s: (typeof THEME_COLORS)[Theme]): HT
   return wrapper
 }
 
-function buildQuickIndicator(entry: HistoryEntry, _s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildQuickIndicator(entry: HistoryEntry): HTMLElement {
   const bar = document.createElement('div')
   bar.setAttribute('data-agent-overlay-quick-indicator', '')
 
@@ -173,12 +180,12 @@ function buildQuickIndicator(entry: HistoryEntry, _s: (typeof THEME_COLORS)[Them
   return bar
 }
 
-function buildTagsRow(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildTagsRow(entry: HistoryEntry): HTMLElement {
   const row = document.createElement('div')
   row.setAttribute('data-agent-overlay-tags', '')
   row.style.cssText = `
     display: flex; flex-wrap: wrap; gap: 4px;
-    padding: 6px 12px; border-bottom: 1px solid ${s.divider};
+    padding: 6px 12px; border-bottom: 1px solid var(--ao-divider);
   `
 
   if (entry.model !== undefined) {
@@ -186,8 +193,8 @@ function buildTagsRow(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTM
     modelTag.setAttribute('data-agent-overlay-model-tag', '')
     modelTag.textContent = entry.model
     modelTag.style.cssText = `
-      background: ${s.tagBg}; color: ${s.text}; font-size: 10px;
-      padding: 2px 6px; border-radius: 3px; border: 1px solid ${s.border};
+      background: var(--ao-tag-bg); color: var(--ao-text); font-size: 10px;
+      padding: 2px 6px; border-radius: 3px; border: 1px solid var(--ao-border);
     `
     row.appendChild(modelTag)
   }
@@ -197,8 +204,8 @@ function buildTagsRow(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTM
     tag.setAttribute('data-agent-overlay-preset-tag', '')
     tag.textContent = preset.label
     tag.style.cssText = `
-      background: ${s.tagBg}; color: ${s.text}; font-size: 10px;
-      padding: 2px 6px; border-radius: 3px; border: 1px solid ${s.border};
+      background: var(--ao-tag-bg); color: var(--ao-text); font-size: 10px;
+      padding: 2px 6px; border-radius: 3px; border: 1px solid var(--ao-border);
     `
     row.appendChild(tag)
   }
@@ -206,7 +213,7 @@ function buildTagsRow(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTM
   return row
 }
 
-function buildSections(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildSections(entry: HistoryEntry): HTMLElement {
   const container = document.createElement('div')
   container.style.cssText = 'padding: 0 0 4px;'
 
@@ -217,7 +224,7 @@ function buildSections(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HT
     const sectionEl = document.createElement('div')
     sectionEl.style.cssText = `
       padding: 8px 12px;
-      ${i > 0 ? `border-top: 1px solid ${s.divider};` : ''}
+      ${i > 0 ? 'border-top: 1px solid var(--ao-divider);' : ''}
     `
 
     const label = document.createElement('div')
@@ -231,7 +238,7 @@ function buildSections(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HT
     const content = document.createElement('div')
     content.setAttribute('data-agent-overlay-section-content', '')
     content.textContent = section.content
-    content.style.cssText = `font-size: 13px; color: ${s.text}; line-height: 1.5;`
+    content.style.cssText = 'font-size: 13px; color: var(--ao-text); line-height: 1.5;'
 
     sectionEl.appendChild(label)
     sectionEl.appendChild(content)
@@ -243,7 +250,7 @@ function buildSections(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HT
 
 export class ExplanationPopup {
   private readonly container: HTMLElement
-  private readonly theme: Theme
+  private theme: Theme
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
   private readonly handleEscape: (e: KeyboardEvent) => void
@@ -263,18 +270,18 @@ export class ExplanationPopup {
     this.hide()
 
     const { entry, currentIndex, totalCount, position } = options
-    const s = THEME_COLORS[this.theme]
 
     const posLeft = position?.left ?? 0
     const posTop = position ? position.top + ESTIMATED_UI_HEIGHT : 0
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-explanation', '')
-    wrapper.style.cssText = `
-      position: absolute; z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
+    applyExplanationThemeVars(wrapper, this.theme)
+    wrapper.style.cssText += `
+      position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
       border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
       overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      color: ${s.text}; font-size: 13px; cursor: grab;
+      color: var(--ao-text); font-size: 13px; cursor: grab;
     `
     wrapper.style.left = `${posLeft}px`
     wrapper.style.top = `${posTop}px`
@@ -286,28 +293,27 @@ export class ExplanationPopup {
     // Nav bar (only when totalCount > 1)
     if (totalCount > 1) {
       wrapper.appendChild(
-        buildNavBar(s, currentIndex, totalCount, handlePrev, handleNext, handleClose),
+        buildNavBar(currentIndex, totalCount, handlePrev, handleNext, handleClose),
       )
     } else {
-      wrapper.appendChild(buildCloseButtonOnly(s, handleClose))
+      wrapper.appendChild(buildCloseButtonOnly(handleClose))
     }
 
     // Context area: prompt bubble or quick-run indicator
     if (entry.isQuickRun) {
-      wrapper.appendChild(buildQuickIndicator(entry, s))
+      wrapper.appendChild(buildQuickIndicator(entry))
     } else {
-      wrapper.appendChild(buildPromptBubble(entry.prompt, s))
-      wrapper.appendChild(buildTagsRow(entry, s))
+      wrapper.appendChild(buildPromptBubble(entry.prompt))
+      wrapper.appendChild(buildTagsRow(entry))
     }
 
-    // Tags row shown only for non-quick-run (already appended above for non-quick)
     // For quick-run we still show tags
     if (entry.isQuickRun) {
-      wrapper.appendChild(buildTagsRow(entry, s))
+      wrapper.appendChild(buildTagsRow(entry))
     }
 
     // Sections
-    wrapper.appendChild(buildSections(entry, s))
+    wrapper.appendChild(buildSections(entry))
 
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     this.container.appendChild(wrapper)
@@ -319,6 +325,14 @@ export class ExplanationPopup {
 
     // Make draggable (exclude buttons from triggering drag)
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
+  }
+
+  setTheme(theme: Theme): void {
+    if (this.theme === theme) return
+    this.theme = theme
+    if (this.wrapper) {
+      applyExplanationThemeVars(this.wrapper, theme)
+    }
   }
 
   hide(): void {

@@ -24,6 +24,7 @@ const THEME_STYLES: Record<
 
 export class HistoryButton {
   private readonly el: HTMLButtonElement
+  private readonly label: HTMLSpanElement
   private readonly badge: HTMLSpanElement
   onClick: (() => void) | null = null
 
@@ -70,7 +71,17 @@ export class HistoryButton {
     container.appendChild(el)
 
     this.el = el
+    this.label = label
     this.badge = badge
+  }
+
+  setTheme(theme: Theme): void {
+    const s = THEME_STYLES[theme]
+    this.el.style.background = s.bg
+    this.el.style.borderColor = s.border
+    this.el.style.color = s.text
+    this.badge.style.color = s.badgeText
+    this.badge.style.background = s.badge
   }
 
   setCount(count: number): void {

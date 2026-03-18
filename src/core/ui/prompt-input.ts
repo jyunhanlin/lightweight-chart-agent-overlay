@@ -34,6 +34,16 @@ const SUBMIT_ACTIVE_BG = '#2196f3'
 const SUBMIT_INACTIVE_BG = '#555'
 const ERROR_DISMISS_MS = 5000
 
+function applyThemeVars(el: HTMLElement, theme: Theme): void {
+  const s = THEME_STYLES[theme]
+  el.style.setProperty('--ao-bg', s.bg)
+  el.style.setProperty('--ao-border', s.border)
+  el.style.setProperty('--ao-text', s.text)
+  el.style.setProperty('--ao-hint', s.hint)
+  el.style.setProperty('--ao-progress', s.progressBar)
+  el.style.setProperty('--ao-toolbar', s.toolbar)
+}
+
 export interface PromptInputOptions {
   readonly models?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
@@ -42,7 +52,7 @@ export interface PromptInputOptions {
 
 export class PromptInput {
   private readonly container: HTMLElement
-  private readonly theme: Theme
+  private theme: Theme
   private readonly models: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
 
@@ -67,17 +77,17 @@ export class PromptInput {
 
   show(position?: UIPosition): void {
     this.hide()
-    const s = THEME_STYLES[this.theme]
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-prompt', '')
+    applyThemeVars(wrapper, this.theme)
 
     const posLeft = position?.left ?? 0
     const posTop = position?.top ?? 0
 
-    wrapper.style.cssText = `
+    wrapper.style.cssText += `
       position: absolute; left: ${posLeft}px; top: ${posTop}px;
-      z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
+      z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
       border-radius: 8px; overflow: visible;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       cursor: grab; min-width: 420px; max-width: 520px;
@@ -89,7 +99,7 @@ export class PromptInput {
     closeBtn.textContent = '×'
     closeBtn.style.cssText = `
       position: absolute; top: 6px; right: 8px;
-      background: transparent; border: none; color: ${s.hint};
+      background: transparent; border: none; color: var(--ao-hint);
       font-size: 18px; cursor: pointer; line-height: 1; padding: 0;
       font-family: inherit;
     `
@@ -105,7 +115,7 @@ export class PromptInput {
     textarea.style.cssText = `
       display: block; width: 100%; box-sizing: border-box;
       background: transparent; border: none; outline: none;
-      color: ${s.text}; font-size: 14px; font-family: inherit;
+      color: var(--ao-text); font-size: 14px; font-family: inherit;
       resize: none; padding: 10px 32px 8px 12px; cursor: text;
     `
 
@@ -113,8 +123,8 @@ export class PromptInput {
     const toolbar = document.createElement('div')
     toolbar.style.cssText = `
       display: flex; align-items: center; gap: 6px;
-      padding: 6px 10px; border-top: 1px solid ${s.border};
-      background: ${s.toolbar}; border-radius: 0 0 8px 8px;
+      padding: 6px 10px; border-top: 1px solid var(--ao-border);
+      background: var(--ao-toolbar); border-radius: 0 0 8px 8px;
     `
 
     // Dropdown manager for mutual exclusion
@@ -198,7 +208,7 @@ export class PromptInput {
     const hint = document.createElement('span')
     const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
     hint.textContent = `${modKey}\u21b5`
-    hint.style.cssText = `color: ${s.hint}; font-size: 11px; flex-shrink: 0;`
+    hint.style.cssText = `color: var(--ao-hint); font-size: 11px; flex-shrink: 0;`
     toolbar.appendChild(hint)
 
     submitBtn.addEventListener('click', () => {
@@ -219,7 +229,7 @@ export class PromptInput {
     errorDiv.style.cssText = `
       display: none; padding: 4px 12px 6px;
       font-size: 12px; color: #f44336;
-      background: ${s.bg};
+      background: var(--ao-bg);
     `
 
     // ── Progress bar ────────────────────────────────────────────────────────
@@ -227,12 +237,12 @@ export class PromptInput {
     progressBar.setAttribute('data-agent-overlay-progress', '')
     progressBar.style.cssText = `
       position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-      background: ${s.border}; overflow: hidden; display: none;
+      background: var(--ao-border); overflow: hidden; display: none;
       border-radius: 0 0 8px 8px;
     `
     const progressFill = document.createElement('div')
     progressFill.style.cssText = `
-      width: 40%; height: 100%; background: ${s.progressBar};
+      width: 40%; height: 100%; background: var(--ao-progress);
       border-radius: 1px; animation: progress-slide 1.2s ease-in-out infinite;
     `
     progressBar.appendChild(progressFill)
@@ -303,6 +313,14 @@ export class PromptInput {
     }
 
     textarea.focus()
+  }
+
+  setTheme(theme: Theme): void {
+    if (this.theme === theme) return
+    this.theme = theme
+    if (this.wrapper) {
+      applyThemeVars(this.wrapper, theme)
+    }
   }
 
   getLastPosition(): UIPosition | null {

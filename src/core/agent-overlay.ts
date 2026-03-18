@@ -58,7 +58,7 @@ export function createAgentOverlay(
   const rangeSelector = new RangeSelector(chart as never, series as never)
   const renderer = new OverlayRenderer(series as never)
   const chartEl = chart.chartElement()
-  const theme = options.theme ?? 'dark'
+  let theme: 'light' | 'dark' = options.theme ?? 'dark'
   const promptBuilder = options.promptBuilder ?? defaultPromptBuilder
 
   // Ensure container supports absolute positioning for UI overlays
@@ -297,6 +297,14 @@ export function createAgentOverlay(
     setSelectionEnabled(enabled: boolean) {
       rangeSelector.setEnabled(enabled)
       emitter.emit('selection-mode-change', enabled)
+    },
+
+    setTheme(newTheme: 'light' | 'dark') {
+      if (theme === newTheme) return
+      theme = newTheme
+      promptInput.setTheme(newTheme)
+      explanationPopup.setTheme(newTheme)
+      historyButton.setTheme(newTheme)
     },
 
     on<K extends keyof AgentOverlayEventMap>(

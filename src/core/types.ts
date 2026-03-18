@@ -153,5 +153,6 @@ export interface AgentOverlay {
   destroy(): void
   clearOverlays(): void
   setSelectionEnabled(enabled: boolean): void
+  setTheme(theme: 'light' | 'dark'): void
   on<K extends keyof AgentOverlayEventMap>(event: K, handler: AgentOverlayEventMap[K]): () => void
 }
