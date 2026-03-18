@@ -1,8 +1,16 @@
 // src/core/agent-overlay.ts
 
-import type { AgentOverlay, AgentOverlayEventMap, AgentOverlayOptions } from './types'
+import type {
+  AgentOverlay,
+  AgentOverlayEventMap,
+  AgentOverlayOptions,
+  AnalysisPreset,
+  ChartContext,
+  NormalizedAnalysisResult,
+} from './types'
 import { createEventEmitter } from './event-emitter'
 import { validateResult } from './validate-result'
+import { defaultPromptBuilder } from './prompt-builder'
 import { RangeSelector } from './selection/range-selector'
 import { buildChartContext } from './selection/context-builder'
 import { OverlayRenderer } from './overlay/overlay-renderer'
@@ -27,6 +35,16 @@ interface SeriesLike {
   priceToCoordinate(price: number): number | null
 }
 
+interface AnalyzeParams {
+  readonly context: ChartContext
+  readonly prompt: string
+  readonly additionalSystemPrompt: string | undefined
+  readonly model: string | undefined
+  readonly isQuickRun: boolean
+  readonly presets: readonly AnalysisPreset[]
+  readonly currentRange: { readonly from: unknown; readonly to: unknown }
+}
+
 export function createAgentOverlay(
   chart: ChartLike,
   series: SeriesLike,
@@ -37,13 +55,18 @@ export function createAgentOverlay(
   const renderer = new OverlayRenderer(series as never)
   const chartEl = chart.chartElement()
   const theme = options.ui?.theme ?? 'dark'
+  const promptBuilder = options.promptBuilder ?? defaultPromptBuilder
 
   // Ensure container supports absolute positioning for UI overlays
   if (getComputedStyle(chartEl).position === 'static') {
     chartEl.style.position = 'relative'
   }
 
-  const promptInput = new PromptInput(chartEl, theme)
+  const promptInput = new PromptInput(chartEl, {
+    models: options.provider.models,
+    presets: options.presets,
+    theme,
+  })
   const explanationPopup = new ExplanationPopup(chartEl, theme)
 
   explanationPopup.onClose = () => {
@@ -52,6 +75,57 @@ export function createAgentOverlay(
   }
 
   let abortController: AbortController | null = null
+
+  async function runAnalysis(params: AnalyzeParams): Promise<void> {
+    promptInput.setLoading(true)
+    emitter.emit('analyze-start')
+    abortController = new AbortController()
+
+    try {
+      const rawResult = await options.provider.analyze(
+        params.context,
+        params.prompt,
+        abortController.signal,
+        {
+          model: params.model,
+          additionalSystemPrompt: params.additionalSystemPrompt || undefined,
+        },
+      )
+      const result: NormalizedAnalysisResult = validateResult(rawResult)
+
+      renderer.clear()
+      renderer.render(result)
+
+      if (result.explanation) {
+        const pos = promptInput.getLastPosition()
+        const entry = {
+          prompt: params.prompt,
+          isQuickRun: params.isQuickRun,
+          model: params.model,
+          presets: params.presets,
+          result,
+          range: params.currentRange,
+        } as Parameters<typeof explanationPopup.show>[0]['entry']
+        explanationPopup.show({
+          entry,
+          currentIndex: 0,
+          totalCount: 1,
+          position: pos ?? undefined,
+        })
+      }
+
+      promptInput.hide()
+      emitter.emit('analyze-complete', result)
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        promptInput.setLoading(false)
+        promptInput.showError(err instanceof Error ? err.message : String(err))
+        emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+      }
+    } finally {
+      abortController = null
+    }
+  }
 
   rangeSelector.onDismiss = () => {
     abortController?.abort()
@@ -81,51 +155,53 @@ export function createAgentOverlay(
     promptInput.show(position)
   }
 
-  promptInput.onSubmit = async (prompt: string) => {
-    promptInput.setLoading(true)
-    emitter.emit('analyze-start')
+  promptInput.onSubmit = async (userPrompt: string) => {
+    const seriesData = series.data() as never[]
+    const currentRange = rangeSelector.getRange()
+    if (!currentRange) throw new Error('No selection range available')
 
-    abortController = new AbortController()
+    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+    const selectedPresets = promptInput.getSelectedPresets()
+    const buildResult = promptBuilder.build({
+      userPrompt,
+      selectedPresets,
+      isQuickRun: false,
+    })
+    const selectedModel = promptInput.getSelectedModel()
 
-    try {
-      const seriesData = series.data() as never[]
-      const currentRange = rangeSelector.getRange()
+    await runAnalysis({
+      context,
+      prompt: buildResult.prompt,
+      additionalSystemPrompt: buildResult.additionalSystemPrompt,
+      model: selectedModel,
+      isQuickRun: false,
+      presets: selectedPresets,
+      currentRange: currentRange as { from: unknown; to: unknown },
+    })
+  }
 
-      if (!currentRange) {
-        throw new Error('No selection range available')
-      }
+  promptInput.onQuickRun = async (presets: readonly AnalysisPreset[]) => {
+    const seriesData = series.data() as never[]
+    const currentRange = rangeSelector.getRange()
+    if (!currentRange) throw new Error('No selection range available')
 
-      const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+    const buildResult = promptBuilder.build({
+      userPrompt: '',
+      selectedPresets: presets,
+      isQuickRun: true,
+    })
+    const selectedModel = promptInput.getSelectedModel()
 
-      const rawResult = await options.provider.analyze(context, prompt, abortController.signal)
-      const result = validateResult(rawResult)
-
-      renderer.render(result)
-
-      if (result.explanation) {
-        // Use prompt's last position (might have been dragged)
-        const pos = promptInput.getLastPosition()
-        const entry = {
-          prompt,
-          isQuickRun: false,
-          model: undefined,
-          presets: [],
-          result,
-          range: currentRange as { from: unknown; to: unknown },
-        } as Parameters<typeof explanationPopup.show>[0]['entry']
-        explanationPopup.show({ entry, currentIndex: 0, totalCount: 1, position: pos ?? undefined })
-      }
-
-      promptInput.hide()
-      emitter.emit('analyze-complete', result)
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        promptInput.setLoading(false)
-        emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
-      }
-    } finally {
-      abortController = null
-    }
+    await runAnalysis({
+      context,
+      prompt: buildResult.prompt,
+      additionalSystemPrompt: buildResult.additionalSystemPrompt,
+      model: selectedModel,
+      isQuickRun: true,
+      presets: [...presets],
+      currentRange: currentRange as { from: unknown; to: unknown },
+    })
   }
 
   promptInput.onCancel = () => {

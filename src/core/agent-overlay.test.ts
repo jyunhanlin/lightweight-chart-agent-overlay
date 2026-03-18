@@ -1,6 +1,6 @@
 // src/core/agent-overlay.test.ts
 import { createAgentOverlay } from './agent-overlay'
-import type { LLMProvider, AnalysisResult } from './types'
+import type { LLMProvider, AnalysisResult, PromptBuilder, AnalysisPreset } from './types'
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => ({
@@ -42,6 +42,7 @@ function createMockSeries() {
       { time: 2000, open: 105, high: 115, low: 95, close: 110 },
       { time: 3000, open: 110, high: 120, low: 100, close: 115 },
     ]),
+    priceToCoordinate: vi.fn(() => 200),
   }
 }
 
@@ -55,6 +56,30 @@ function fireDrag(el: HTMLElement, fromX: number, toX: number) {
   el.dispatchEvent(new MouseEvent('mousedown', { clientX: fromX, bubbles: true }))
   el.dispatchEvent(new MouseEvent('mousemove', { clientX: toX, bubbles: true }))
   el.dispatchEvent(new MouseEvent('mouseup', { clientX: toX, bubbles: true }))
+}
+
+function getTextarea(el: HTMLElement): HTMLTextAreaElement | null {
+  return el.querySelector('textarea')
+}
+
+function submitPrompt(el: HTMLElement, text: string) {
+  const textarea = getTextarea(el)
+  if (!textarea) return
+  textarea.value = text
+  textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+}
+
+/** Helper: enable selection, drag, and submit a prompt in one call */
+function selectAndSubmit(
+  agent: ReturnType<typeof createAgentOverlay>,
+  el: HTMLElement,
+  text: string,
+  fromX = 10,
+  toX = 50,
+) {
+  agent.setSelectionEnabled(true)
+  fireDrag(el, fromX, toX)
+  submitPrompt(el, text)
 }
 
 describe('createAgentOverlay', () => {
@@ -116,27 +141,20 @@ describe('createAgentOverlay', () => {
     const onComplete = vi.fn()
     agent.on('analyze-complete', onComplete)
 
-    agent.setSelectionEnabled(true)
-    fireDrag(el, 10, 50)
+    selectAndSubmit(agent, el, 'Find support levels')
 
-    const input = el.querySelector('input') as HTMLInputElement
-    if (input) {
-      input.value = 'Find support levels'
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-
-      await vi.waitFor(() => {
-        expect(provider.analyze).toHaveBeenCalled()
-      })
-      await vi.waitFor(() => {
-        expect(onComplete).toHaveBeenCalledWith(
-          expect.objectContaining({
-            explanation: {
-              sections: [{ label: 'Analysis', content: 'Support at 100' }],
-            },
-          }),
-        )
-      })
-    }
+    await vi.waitFor(() => {
+      expect(provider.analyze).toHaveBeenCalled()
+    })
+    await vi.waitFor(() => {
+      expect(onComplete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          explanation: {
+            sections: [{ label: 'Analysis', content: 'Support at 100' }],
+          },
+        }),
+      )
+    })
 
     el.remove()
   })
@@ -152,18 +170,32 @@ describe('createAgentOverlay', () => {
     const onError = vi.fn()
     agent.on('error', onError)
 
-    agent.setSelectionEnabled(true)
-    fireDrag(el, 10, 50)
+    selectAndSubmit(agent, el, 'test')
 
-    const input = el.querySelector('input') as HTMLInputElement
-    if (input) {
-      input.value = 'test'
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'API failed' }))
+    })
 
-      await vi.waitFor(() => {
-        expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'API failed' }))
-      })
+    el.remove()
+  })
+
+  it('shows error via showError when provider rejects', async () => {
+    const { chart, el } = createMockChart()
+    const series = createMockSeries()
+    const provider: LLMProvider = {
+      analyze: vi.fn().mockRejectedValue(new Error('API failed')),
     }
+
+    const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+    selectAndSubmit(agent, el, 'test')
+
+    await vi.waitFor(() => {
+      const errorDiv = el.querySelector('[data-agent-overlay-error]') as HTMLElement | null
+      expect(errorDiv).not.toBeNull()
+      expect(errorDiv?.textContent).toBe('API failed')
+      expect(errorDiv?.style.display).toBe('block')
+    })
 
     el.remove()
   })
@@ -191,11 +223,7 @@ describe('createAgentOverlay', () => {
     agent.setSelectionEnabled(true)
     fireDrag(el, 10, 50)
 
-    const input = el.querySelector('input') as HTMLInputElement
-    if (input) {
-      input.value = 'test'
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-    }
+    submitPrompt(el, 'test')
 
     // New drag selection while request is in-flight — triggers abort
     fireDrag(el, 20, 60)
@@ -205,5 +233,179 @@ describe('createAgentOverlay', () => {
     expect(onError).not.toHaveBeenCalled()
 
     el.remove()
+  })
+
+  describe('PromptBuilder integration', () => {
+    it('uses defaultPromptBuilder when none provided', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'test result' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      selectAndSubmit(agent, el, 'analyze this')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      // defaultPromptBuilder passes userPrompt through as-is when no presets
+      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(call[1]).toBe('analyze this')
+
+      el.remove()
+    })
+
+    it('custom promptBuilder is called with correct params', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'test result' })
+
+      const customBuilder: PromptBuilder = {
+        build: vi.fn().mockReturnValue({
+          prompt: 'custom prompt',
+          additionalSystemPrompt: 'custom system',
+        }),
+      }
+
+      const agent = createAgentOverlay(chart as never, series as never, {
+        provider,
+        promptBuilder: customBuilder,
+      })
+
+      selectAndSubmit(agent, el, 'user text')
+
+      await vi.waitFor(() => {
+        expect(customBuilder.build).toHaveBeenCalledWith({
+          userPrompt: 'user text',
+          selectedPresets: [],
+          isQuickRun: false,
+        })
+      })
+
+      // Provider should receive the custom prompt
+      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(call[1]).toBe('custom prompt')
+
+      el.remove()
+    })
+
+    it('provider receives AnalyzeOptions with model and additionalSystemPrompt', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'test result' })
+
+      const customBuilder: PromptBuilder = {
+        build: vi.fn().mockReturnValue({
+          prompt: 'built prompt',
+          additionalSystemPrompt: 'system instructions',
+        }),
+      }
+
+      const agent = createAgentOverlay(chart as never, series as never, {
+        provider,
+        promptBuilder: customBuilder,
+      })
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      // The 4th argument should be AnalyzeOptions
+      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(call[3]).toEqual({
+        model: undefined,
+        additionalSystemPrompt: 'system instructions',
+      })
+
+      el.remove()
+    })
+
+    it('omits additionalSystemPrompt when empty', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'test result' })
+
+      const customBuilder: PromptBuilder = {
+        build: vi.fn().mockReturnValue({
+          prompt: 'built prompt',
+          additionalSystemPrompt: '',
+        }),
+      }
+
+      const agent = createAgentOverlay(chart as never, series as never, {
+        provider,
+        promptBuilder: customBuilder,
+      })
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(call[3]).toEqual({
+        model: undefined,
+        additionalSystemPrompt: undefined,
+      })
+
+      el.remove()
+    })
+  })
+
+  describe('onQuickRun', () => {
+    it('triggers the quick run flow via preset dropdown Run button', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'quick result' })
+
+      const presets: AnalysisPreset[] = [
+        {
+          label: 'Support/Resistance',
+          systemPrompt: 'Find S/R',
+          defaultPrompt: 'Analyze S/R levels',
+        },
+      ]
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider, presets })
+
+      // Need to enable selection and create a range first
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 10, 50)
+
+      // Find and interact with preset dropdown
+      const presetWrapper = el.querySelector('[data-agent-overlay-preset-dropdown]')
+      expect(presetWrapper).not.toBeNull()
+
+      const trigger = presetWrapper?.querySelector('[data-dropdown-trigger]') as HTMLElement
+      expect(trigger).not.toBeNull()
+
+      // Open dropdown
+      trigger.click()
+
+      // Select the preset item
+      const item = el.querySelector('[data-dropdown-item="preset-0"]') as HTMLElement
+      expect(item).not.toBeNull()
+      item.click()
+
+      // Click Run
+      const runBtn = el.querySelector('[data-dropdown-run]') as HTMLButtonElement
+      expect(runBtn).not.toBeNull()
+      runBtn.click()
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      // Verify the prompt was built with isQuickRun = true
+      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
+      // The prompt should come from the preset's defaultPrompt
+      expect(call[1]).toBe('Analyze S/R levels')
+
+      el.remove()
+    })
   })
 })
