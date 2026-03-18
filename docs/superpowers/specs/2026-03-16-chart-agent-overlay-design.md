@@ -20,7 +20,7 @@ Frontend developers who already use Lightweight Charts and want to add AI analys
 | Selection Mode | Explicit toggle via `setSelectionEnabled()` | Avoids conflict with chart's native pan/scroll; developers choose their own trigger (button, hotkey, etc.) |
 | Overlay Types (MVP) | Price Lines + Markers only | `series.createPriceLine()` + v5 markers plugin (`createSeriesMarkers()`); no custom primitives for overlays |
 | Selection Highlight | Series Primitive with `useMediaCoordinateSpace()` | Follows chart zoom/pan automatically via `updateAllViews()` lifecycle; uses v5 `renderer()` method pattern |
-| Prompt Input | DOM overlay, right-center positioned | UI element, not chart drawing; `stopPropagation` on mousedown to prevent dismiss |
+| Prompt Input | DOM overlay, smart-positioned to avoid covering K-lines, draggable | UI element, not chart drawing; `stopPropagation` on mousedown to prevent dismiss |
 | Data Source | Read from chart series by default | Zero-config via `series.data()`; optional `dataAccessor` override for richer data |
 
 ## Phased Roadmap
@@ -57,7 +57,6 @@ interface AgentOverlayOptions {
   provider: LLMProvider
   dataAccessor?: DataAccessor
   ui?: {
-    promptPlacement?: 'top' | 'bottom'
     theme?: 'light' | 'dark'
   }
 }
@@ -137,7 +136,7 @@ import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/provide
 
 const provider = createAnthropicProvider({
   apiKey: 'sk-ant-...',
-  model: 'claude-sonnet-4-20250514', // optional, has default
+  model: 'claude-haiku-4-5',          // optional, has default
   systemPrompt: '...',               // optional, override default system prompt
 })
 ```
@@ -243,7 +242,8 @@ User                        Package                         LLM
                                time range → OHLCData[]
 
                             6. Show prompt input
-                               (right-center, DOM overlay)
+                               (smart-positioned to avoid
+                                covering K-lines, draggable)
 
 7. Type prompt, press Enter
 
@@ -315,7 +315,11 @@ Use `series.data()` to get all data items, then filter by the selected time rang
 
 ### System Prompt (Built-in Provider)
 
-The built-in providers include a system prompt that instructs the LLM to return valid JSON matching the `AnalysisResult` schema. Advanced users can override via `systemPrompt` option on the provider factory (e.g., `createAnthropicProvider({ systemPrompt: '...' })`).
+The built-in providers include a system prompt that instructs the LLM to:
+1. Analyze the selected data from both **technical** and **macro** perspectives (support/resistance, patterns, and relevant macroeconomic events or news if known for the time period)
+2. Return valid JSON matching the `AnalysisResult` schema
+
+Advanced users can override via `systemPrompt` option on the provider factory (e.g., `createAnthropicProvider({ systemPrompt: '...' })`).
 
 Response validation: `JSON.parse()` first, then fallback regex extraction for JSON embedded in prose (non-greedy, iterates candidates from last to first). Invalid price line/marker entries are filtered out silently. On complete validation failure, emit an `'error'` event with a descriptive message.
 
@@ -328,9 +332,10 @@ After a successful analysis, if `AnalysisResult.explanation` is present, a small
 
 ### Prompt Input
 
-- **Position:** Right-center of chart, offset from price scale (`right: 60px`)
+- **Position:** Smart-positioned to avoid covering K-lines — calculates candle high/low pixel bounds via `priceToCoordinate()`, places UI above or below candles based on available space, anchored to left edge of selection via `timeToCoordinate()`
+- **Draggable:** Both prompt input and explanation popup support drag-to-reposition within chart bounds (excludes input/button elements from triggering drag)
 - **Interaction:** `mousedown` event has `stopPropagation` to prevent triggering selection dismiss
-- **Loading state:** Input disabled with "Analyzing..." placeholder during LLM call
+- **Loading state:** Input disabled with progress bar animation during LLM call; Enter hint uses `visibility: hidden` (not `display: none`) to prevent width jump
 
 ## Package Structure
 
@@ -349,7 +354,9 @@ lightweight-chart-agent-overlay/
 │   │   │   └── overlay-renderer.ts   # AnalysisResult → price lines + markers
 │   │   └── ui/
 │   │       ├── prompt-input.ts       # floating prompt input (DOM)
-│   │       └── explanation-popup.ts  # AI explanation display
+│   │       ├── explanation-popup.ts  # AI explanation display
+│   │       ├── calculate-position.ts # smart UI positioning (avoid covering K-lines)
+│   │       └── make-draggable.ts     # drag-to-reposition utility
 │   ├── providers/
 │   │   ├── parse-response.ts         # shared JSON extraction from LLM text
 │   │   ├── anthropic.ts
