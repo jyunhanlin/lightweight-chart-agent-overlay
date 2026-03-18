@@ -6,12 +6,12 @@ const PRESETS: readonly AnalysisPreset[] = [
   {
     label: 'Technical',
     systemPrompt: 'Focus on technical analysis.',
-    defaultPrompt: 'Analyze technicals',
+    quickPrompt: 'Analyze technicals',
   },
   {
     label: 'Fundamental',
     systemPrompt: 'Focus on fundamentals.',
-    defaultPrompt: 'Analyze fundamentals',
+    quickPrompt: 'Analyze fundamentals',
   },
 ]
 
@@ -36,7 +36,7 @@ describe('defaultPromptBuilder', () => {
     )
   })
 
-  it('should concatenate defaultPrompts for quick run', () => {
+  it('should concatenate quickPrompts for quick run', () => {
     const result = defaultPromptBuilder.build({
       userPrompt: '',
       selectedPresets: PRESETS,

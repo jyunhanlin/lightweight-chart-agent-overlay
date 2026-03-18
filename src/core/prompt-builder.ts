@@ -7,7 +7,7 @@ export const defaultPromptBuilder: PromptBuilder = {
     const additionalSystemPrompt = selectedPresets.map((p) => p.systemPrompt).join('\n\n')
 
     const prompt = isQuickRun
-      ? selectedPresets.map((p) => p.defaultPrompt).join('\n\n')
+      ? selectedPresets.map((p) => p.quickPrompt).join('\n\n')
       : userPrompt
 
     return { prompt, additionalSystemPrompt }

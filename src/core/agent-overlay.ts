@@ -18,6 +18,7 @@ import { OverlayRenderer } from './overlay/overlay-renderer'
 import { PromptInput } from './ui/prompt-input'
 import { ExplanationPopup } from './ui/explanation-popup'
 import { calculateSmartPosition } from './ui/calculate-position'
+import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
 import { HistoryButton } from './ui/history-button'
 
@@ -71,10 +72,11 @@ export function createAgentOverlay(
 
   let currentHistoryIndex = -1
 
+  const presets = options.presets ?? DEFAULT_PRESETS
+
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
-    presets: options.presets,
-    defaultPresetIndices: options.defaultPresetIndices,
+    presets,
     theme,
   })
   const explanationPopup = new ExplanationPopup(chartEl, theme)

@@ -9,8 +9,8 @@ const MODELS: readonly ModelOption[] = [
 ]
 
 const PRESETS: readonly AnalysisPreset[] = [
-  { label: 'Support/Resistance', systemPrompt: 'sys1', defaultPrompt: 'default1' },
-  { label: 'Trend', systemPrompt: 'sys2', defaultPrompt: 'default2' },
+  { label: 'Support/Resistance', systemPrompt: 'sys1', quickPrompt: 'default1' },
+  { label: 'Trend', systemPrompt: 'sys2', quickPrompt: 'default2' },
 ]
 
 describe('PromptInput', () => {
@@ -258,14 +258,15 @@ describe('PromptInput', () => {
     const trigger = container.querySelector('[data-dropdown-trigger]') as HTMLButtonElement
     trigger.click()
 
-    // Click first preset item
-    const firstItem = document.querySelector('[data-dropdown-item="preset-0"]') as HTMLElement
-    expect(firstItem).not.toBeNull()
-    firstItem.click()
+    // Click second preset item (first is pre-selected by default)
+    const secondItem = document.querySelector('[data-dropdown-item="preset-1"]') as HTMLElement
+    expect(secondItem).not.toBeNull()
+    secondItem.click()
 
     const selected = prompt.getSelectedPresets()
-    expect(selected).toHaveLength(1)
+    expect(selected).toHaveLength(2)
     expect(selected[0]).toEqual(PRESETS[0])
+    expect(selected[1]).toEqual(PRESETS[1])
     prompt.destroy()
   })
 
@@ -284,13 +285,7 @@ describe('PromptInput', () => {
     prompt.onQuickRun = onQuickRun
     prompt.show()
 
-    // Open preset dropdown and select a preset
-    const trigger = container.querySelector('[data-dropdown-trigger]') as HTMLButtonElement
-    trigger.click()
-    const firstItem = document.querySelector('[data-dropdown-item="preset-0"]') as HTMLElement
-    firstItem.click()
-
-    // Cmd+Enter with empty textarea triggers quick run
+    // First preset is pre-selected by default — just press Cmd+Enter
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
 

@@ -37,7 +37,6 @@ const ERROR_DISMISS_MS = 5000
 export interface PromptInputOptions {
   readonly models?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
-  readonly defaultPresetIndices?: readonly number[]
   readonly theme?: Theme
 }
 
@@ -46,7 +45,6 @@ export class PromptInput {
   private readonly theme: Theme
   private readonly models: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
-  private readonly defaultPresetIndices: readonly number[]
 
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
@@ -65,7 +63,6 @@ export class PromptInput {
     this.theme = options?.theme ?? 'dark'
     this.models = options?.models ?? []
     this.presets = options?.presets ?? []
-    this.defaultPresetIndices = options?.defaultPresetIndices ?? []
   }
 
   show(position?: UIPosition): void {
@@ -185,12 +182,9 @@ export class PromptInput {
       presetWrapper.appendChild(this.presetDropdown.element)
       toolbar.appendChild(presetWrapper)
 
-      // Apply default preset selection
-      if (this.defaultPresetIndices.length > 0) {
-        const defaultIds = this.defaultPresetIndices
-          .filter((i) => i >= 0 && i < this.presets.length)
-          .map((i) => `preset-${i}`)
-        this.presetDropdown.setSelected(defaultIds)
+      // Pre-select first preset
+      if (this.presets.length > 0) {
+        this.presetDropdown.setSelected(['preset-0'])
         updateSubmitState()
       }
     }
@@ -260,7 +254,7 @@ export class PromptInput {
       const selectedPresets = this.getSelectedPresets()
       if (selectedPresets.length === 0) return
       // Show what will be sent as feedback
-      textarea.value = selectedPresets.map((p) => p.defaultPrompt).join('\n')
+      textarea.value = selectedPresets.map((p) => p.quickPrompt).join('\n')
       this.clearError()
       this.onQuickRun?.(selectedPresets)
     }

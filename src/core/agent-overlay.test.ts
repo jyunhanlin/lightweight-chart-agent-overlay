@@ -271,6 +271,7 @@ describe('createAgentOverlay', () => {
       const agent = createAgentOverlay(chart as never, series as never, {
         provider,
         promptBuilder: customBuilder,
+        presets: [],
       })
 
       selectAndSubmit(agent, el, 'user text')
@@ -366,7 +367,7 @@ describe('createAgentOverlay', () => {
         {
           label: 'Support/Resistance',
           systemPrompt: 'Find S/R',
-          defaultPrompt: 'Analyze S/R levels',
+          quickPrompt: 'Analyze S/R levels',
         },
       ]
 
@@ -383,13 +384,7 @@ describe('createAgentOverlay', () => {
       const trigger = presetWrapper?.querySelector('[data-dropdown-trigger]') as HTMLElement
       expect(trigger).not.toBeNull()
 
-      // Open dropdown and select preset
-      trigger.click()
-      const item = el.querySelector('[data-dropdown-item="preset-0"]') as HTMLElement
-      expect(item).not.toBeNull()
-      item.click()
-
-      // Cmd+Enter with empty textarea triggers quick run
+      // First preset is pre-selected by default — just press Cmd+Enter
       const textarea = el.querySelector('textarea') as HTMLTextAreaElement
       textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
 
@@ -399,7 +394,7 @@ describe('createAgentOverlay', () => {
 
       // Verify the prompt was built with isQuickRun = true
       const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
-      // The prompt should come from the preset's defaultPrompt
+      // The prompt should come from the preset's quickPrompt
       expect(call[1]).toBe('Analyze S/R levels')
 
       el.remove()

@@ -129,29 +129,6 @@ fetchBTCData().then((data) => {
 
   const agent = createAgentOverlay(chart as never, series as never, {
     provider,
-    presets: [
-      {
-        label: 'Technical',
-        systemPrompt: 'Focus on technical analysis: support/resistance, patterns, indicators. Always include explanation with your analysis. Include priceLines and markers.',
-        defaultPrompt: 'Analyze the technical aspects of this range',
-      },
-      {
-        label: 'Fundamental',
-        systemPrompt: 'Focus on macroeconomic context, news events, and fundamental factors. Always include explanation with your analysis. No priceLines or markers needed.',
-        defaultPrompt: 'Analyze relevant macro events and fundamentals',
-      },
-      {
-        label: 'Smart Money',
-        systemPrompt: 'Analyze volume patterns, unusual activity, and institutional behavior. Always include explanation with your analysis. Include markers for anomalies.',
-        defaultPrompt: 'Analyze smart money signals in this range',
-      },
-      {
-        label: 'Sentiment',
-        systemPrompt: 'Assess market sentiment from price action patterns. Always include explanation with your analysis. No priceLines or markers needed.',
-        defaultPrompt: 'What is the market sentiment in this range?',
-      },
-    ],
-    defaultPresetIndices: [0],
   })
 
   agent.on('analyze-start', () => console.log('Analysis started...'))

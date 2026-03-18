@@ -8,8 +8,8 @@ function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
     isQuickRun: false,
     model: 'claude-haiku-4-5',
     presets: [
-      { label: 'Technical', systemPrompt: '', defaultPrompt: '' },
-      { label: 'Entry/Exit', systemPrompt: '', defaultPrompt: '' },
+      { label: 'Technical', systemPrompt: '', quickPrompt: '' },
+      { label: 'Entry/Exit', systemPrompt: '', quickPrompt: '' },
     ],
     result: {
       explanation: {

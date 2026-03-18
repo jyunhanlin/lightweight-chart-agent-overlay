@@ -103,7 +103,7 @@ export interface AgentOverlayUIOptions {
 export interface AnalysisPreset {
   readonly label: string
   readonly systemPrompt: string
-  readonly defaultPrompt: string
+  readonly quickPrompt: string
 }
 
 // --- Prompt Builder ---
@@ -138,7 +138,6 @@ export interface AgentOverlayOptions {
   readonly provider: LLMProvider
   readonly dataAccessor?: DataAccessor
   readonly presets?: readonly AnalysisPreset[]
-  readonly defaultPresetIndices?: readonly number[]
   readonly promptBuilder?: PromptBuilder
   readonly ui?: AgentOverlayUIOptions
 }
