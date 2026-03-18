@@ -94,10 +94,6 @@ export type DataAccessor = (timeRange: { from: TimeValue; to: TimeValue }) => OH
 
 // --- Options ---
 
-export interface AgentOverlayUIOptions {
-  readonly theme?: 'light' | 'dark'
-}
-
 // --- Presets ---
 
 export interface AnalysisPreset {
@@ -136,10 +132,10 @@ export interface HistoryEntry {
 
 export interface AgentOverlayOptions {
   readonly provider: LLMProvider
+  readonly theme?: 'light' | 'dark'
   readonly dataAccessor?: DataAccessor
   readonly presets?: readonly AnalysisPreset[]
   readonly promptBuilder?: PromptBuilder
-  readonly ui?: AgentOverlayUIOptions
 }
 
 // --- Event Map ---

@@ -58,7 +58,7 @@ export function createAgentOverlay(
   const rangeSelector = new RangeSelector(chart as never, series as never)
   const renderer = new OverlayRenderer(series as never)
   const chartEl = chart.chartElement()
-  const theme = options.ui?.theme ?? 'dark'
+  const theme = options.theme ?? 'dark'
   const promptBuilder = options.promptBuilder ?? defaultPromptBuilder
 
   // Ensure container supports absolute positioning for UI overlays

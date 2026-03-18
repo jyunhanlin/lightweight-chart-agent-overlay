@@ -94,10 +94,10 @@ const myProvider: LLMProvider = {
 ```ts
 createAgentOverlay(chart, series, {
   provider: myProvider,              // required: LLMProvider
+  theme: 'dark',                     // optional: 'dark' | 'light'
   presets: DEFAULT_PRESETS,          // optional: override built-in presets
   promptBuilder: defaultPromptBuilder, // optional: custom prompt construction
   dataAccessor: (range) => data,     // optional: custom data extraction
-  ui: { theme: 'dark' },            // optional: 'dark' | 'light'
 })
 ```
 

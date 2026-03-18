@@ -4,7 +4,6 @@ export { DEFAULT_PRESETS } from './core/default-presets'
 export type {
   AgentOverlay,
   AgentOverlayOptions,
-  AgentOverlayUIOptions,
   AgentOverlayEventMap,
   LLMProvider,
   ChartContext,
