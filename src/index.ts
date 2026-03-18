@@ -12,4 +12,12 @@ export type {
   PriceLineAction,
   MarkerAction,
   DataAccessor,
+  ExplanationSection,
+  ModelOption,
+  AnalyzeOptions,
+  AnalysisPreset,
+  PromptBuildParams,
+  PromptBuildResult,
+  PromptBuilder,
+  HistoryEntry,
 } from './core/types'

@@ -39,16 +39,53 @@ export interface MarkerAction {
   readonly text?: string
 }
 
-export interface AnalysisResult {
-  readonly explanation?: string
+// --- Explanation (structured) ---
+
+export interface ExplanationSection {
+  readonly label: string
+  readonly content: string
+}
+
+export interface NormalizedExplanation {
+  readonly sections: readonly ExplanationSection[]
+}
+
+export interface NormalizedAnalysisResult {
+  readonly explanation?: NormalizedExplanation
   readonly priceLines?: readonly PriceLineAction[]
   readonly markers?: readonly MarkerAction[]
+}
+
+export interface AnalysisResult {
+  readonly explanation?: string | { sections: readonly ExplanationSection[] }
+  readonly priceLines?: readonly PriceLineAction[]
+  readonly markers?: readonly MarkerAction[]
+}
+
+// --- Model ---
+
+export interface ModelOption {
+  readonly id: string
+  readonly label: string
+}
+
+// --- Analyze Options ---
+
+export interface AnalyzeOptions {
+  readonly model?: string
+  readonly additionalSystemPrompt?: string
 }
 
 // --- Provider ---
 
 export interface LLMProvider {
-  analyze(context: ChartContext, prompt: string, signal?: AbortSignal): Promise<AnalysisResult>
+  readonly models?: readonly ModelOption[]
+  analyze(
+    context: ChartContext,
+    prompt: string,
+    signal?: AbortSignal,
+    options?: AnalyzeOptions,
+  ): Promise<AnalysisResult>
 }
 
 // --- Data Accessor ---
@@ -61,9 +98,47 @@ export interface AgentOverlayUIOptions {
   readonly theme?: 'light' | 'dark'
 }
 
+// --- Presets ---
+
+export interface AnalysisPreset {
+  readonly label: string
+  readonly systemPrompt: string
+  readonly defaultPrompt: string
+}
+
+// --- Prompt Builder ---
+
+export interface PromptBuildParams {
+  readonly userPrompt: string
+  readonly selectedPresets: readonly AnalysisPreset[]
+  readonly isQuickRun: boolean
+}
+
+export interface PromptBuildResult {
+  readonly prompt: string
+  readonly additionalSystemPrompt: string
+}
+
+export interface PromptBuilder {
+  build(params: PromptBuildParams): PromptBuildResult
+}
+
+// --- History ---
+
+export interface HistoryEntry {
+  readonly prompt: string
+  readonly isQuickRun: boolean
+  readonly model?: string
+  readonly presets: readonly AnalysisPreset[]
+  readonly result: NormalizedAnalysisResult
+  readonly range: { readonly from: TimeValue; readonly to: TimeValue }
+}
+
 export interface AgentOverlayOptions {
   readonly provider: LLMProvider
   readonly dataAccessor?: DataAccessor
+  readonly presets?: readonly AnalysisPreset[]
+  readonly promptBuilder?: PromptBuilder
   readonly ui?: AgentOverlayUIOptions
 }
 
