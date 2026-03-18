@@ -5,7 +5,7 @@ import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
 import { DropdownManager } from './dropdown-manager'
-import { type Theme, applyThemeVars } from './theme'
+import type { Theme } from './theme'
 
 const SUBMIT_ACTIVE_BG = '#2196f3'
 const SUBMIT_INACTIVE_BG = '#555'
@@ -47,12 +47,11 @@ export class PromptInput {
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-prompt', '')
-    applyThemeVars(wrapper, this.theme)
 
     const posLeft = position?.left ?? 0
     const posTop = position?.top ?? 0
 
-    wrapper.style.cssText += `
+    wrapper.style.cssText = `
       position: absolute; left: ${posLeft}px; top: ${posTop}px;
       z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
       border-radius: 8px; overflow: visible;
@@ -285,9 +284,8 @@ export class PromptInput {
   setTheme(theme: Theme): void {
     if (this.theme === theme) return
     this.theme = theme
-    if (this.wrapper) {
-      applyThemeVars(this.wrapper, theme)
-    }
+    // CSS variables cascade from chartEl; only dropdowns need explicit update
+    // (their panels are rebuilt with direct color values on next open)
     this.modelDropdown?.setTheme(theme)
     this.presetDropdown?.setTheme(theme)
   }

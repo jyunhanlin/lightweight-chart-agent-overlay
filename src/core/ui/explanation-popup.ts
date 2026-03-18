@@ -7,7 +7,7 @@ import {
   type UIPosition,
 } from './calculate-position'
 import { makeDraggable } from './make-draggable'
-import { type Theme, applyThemeVars } from './theme'
+import type { Theme } from './theme'
 
 export interface ExplanationShowOptions {
   readonly entry: HistoryEntry
@@ -243,8 +243,7 @@ export class ExplanationPopup {
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-explanation', '')
-    applyThemeVars(wrapper, this.theme)
-    wrapper.style.cssText += `
+    wrapper.style.cssText = `
       position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
       border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
       overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
@@ -295,11 +294,8 @@ export class ExplanationPopup {
   }
 
   setTheme(theme: Theme): void {
-    if (this.theme === theme) return
     this.theme = theme
-    if (this.wrapper) {
-      applyThemeVars(this.wrapper, theme)
-    }
+    // CSS variables cascade from chartEl — no per-wrapper update needed
   }
 
   hide(): void {

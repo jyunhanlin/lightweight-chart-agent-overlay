@@ -18,6 +18,7 @@ import { OverlayRenderer } from './overlay/overlay-renderer'
 import { PromptInput } from './ui/prompt-input'
 import { ExplanationPopup } from './ui/explanation-popup'
 import { calculateSmartPosition } from './ui/calculate-position'
+import { applyThemeVars } from './ui/theme'
 import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
 import { HistoryButton } from './ui/history-button'
@@ -65,6 +66,9 @@ export function createAgentOverlay(
   if (getComputedStyle(chartEl).position === 'static') {
     chartEl.style.position = 'relative'
   }
+
+  // Set theme CSS variables on chart container — cascades to all UI children
+  applyThemeVars(chartEl, theme)
 
   const historyStore = createHistoryStore()
   const historyButton = new HistoryButton(chartEl, theme)
@@ -302,9 +306,11 @@ export function createAgentOverlay(
     setTheme(newTheme: 'light' | 'dark') {
       if (theme === newTheme) return
       theme = newTheme
+      applyThemeVars(chartEl, newTheme)
+      historyButton.setTheme(newTheme)
+      // Dropdown panels need theme for rebuild on next open
       promptInput.setTheme(newTheme)
       explanationPopup.setTheme(newTheme)
-      historyButton.setTheme(newTheme)
     },
 
     on<K extends keyof AgentOverlayEventMap>(

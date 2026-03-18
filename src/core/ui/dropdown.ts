@@ -1,6 +1,6 @@
 // src/core/ui/dropdown.ts
 
-import { type Theme, THEMES, applyThemeVars } from './theme'
+import { type Theme, THEMES } from './theme'
 
 interface DropdownItem {
   readonly id: string
@@ -79,8 +79,7 @@ export class Dropdown {
   private buildButton(): HTMLElement {
     const btn = document.createElement('button')
     btn.setAttribute('data-dropdown-trigger', '')
-    applyThemeVars(btn, this.theme)
-    btn.style.cssText += `
+    btn.style.cssText = `
       background: var(--dd-btn-bg); border: 1px solid var(--dd-border); color: var(--dd-text);
       border-radius: 4px; padding: 4px 10px; font-size: 13px; cursor: pointer;
       font-family: inherit; white-space: nowrap;
@@ -288,8 +287,8 @@ export class Dropdown {
   setTheme(theme: Theme): void {
     if (this.theme === theme) return
     this.theme = theme
-    applyThemeVars(this.element, theme)
-    // Close panel — next open will use new theme
+    // CSS variables cascade from chartEl for the trigger button.
+    // Close panel — next open will use new theme colors.
     this.close()
   }
 
