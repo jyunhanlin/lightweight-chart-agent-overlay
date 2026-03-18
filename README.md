@@ -45,8 +45,7 @@ import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/provide
 
 const provider = createAnthropicProvider({
   apiKey: 'sk-ant-...',
-  defaultModel: 'claude-haiku-4-5',   // default
-  availableModels: [                  // optional: model selector in UI
+  availableModels: [                  // optional: model selector in UI (first is default)
     { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
   ],
@@ -60,7 +59,6 @@ import { createOpenAIProvider } from 'lightweight-chart-agent-overlay/providers/
 
 const provider = createOpenAIProvider({
   apiKey: 'sk-...',
-  defaultModel: 'gpt-4o-mini',       // default
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
 })
 ```

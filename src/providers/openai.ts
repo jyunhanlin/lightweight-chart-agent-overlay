@@ -38,14 +38,13 @@ IMPORTANT: Always wrap your response in the top-level { "explanation", "priceLin
 
 interface OpenAIProviderOptions {
   readonly apiKey: string
-  readonly defaultModel?: string
   readonly systemPrompt?: string
   readonly baseURL?: string
   readonly availableModels?: readonly ModelOption[]
 }
 
 export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvider {
-  const model = options.defaultModel ?? DEFAULT_MODEL
+  const model = options.availableModels?.[0]?.id ?? DEFAULT_MODEL
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
   const baseURL = options.baseURL ?? API_URL
 
