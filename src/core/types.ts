@@ -58,7 +58,6 @@ export type DataAccessor = (timeRange: { from: TimeValue; to: TimeValue }) => OH
 // --- Options ---
 
 export interface AgentOverlayUIOptions {
-  readonly promptPlacement?: 'top' | 'bottom'
   readonly theme?: 'light' | 'dark'
 }
 

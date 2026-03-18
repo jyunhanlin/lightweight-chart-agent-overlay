@@ -1,4 +1,7 @@
 // src/core/ui/prompt-input.ts
+import type { UIPosition } from './calculate-position'
+import { makeDraggable } from './make-draggable'
+
 type Theme = 'light' | 'dark'
 
 const THEME_STYLES: Record<
@@ -25,6 +28,8 @@ export class PromptInput {
   private readonly container: HTMLElement
   private readonly theme: Theme
   private wrapper: HTMLElement | null = null
+  private cleanupDrag: (() => void) | null = null
+  private lastPosition: UIPosition | null = null
   onSubmit: ((prompt: string) => void) | null = null
   onCancel: (() => void) | null = null
 
@@ -33,17 +38,22 @@ export class PromptInput {
     this.theme = theme
   }
 
-  show(): void {
+  show(position?: UIPosition): void {
     this.hide()
     const s = THEME_STYLES[this.theme]
 
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-agent-overlay-prompt', '')
+
+    const posLeft = position?.left ?? 0
+    const posTop = position?.top ?? 0
+
     wrapper.style.cssText = `
-      position: absolute; right: 60px; top: 50%; transform: translateY(-50%);
+      position: absolute; left: ${posLeft}px; top: ${posTop}px;
       z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
       border-radius: 8px; padding: 6px 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden;
+      cursor: grab;
     `
 
     // Input row
@@ -56,6 +66,7 @@ export class PromptInput {
     input.style.cssText = `
       background: transparent; border: none; outline: none;
       color: ${s.text}; font-size: 14px; width: 280px; font-family: inherit;
+      cursor: text;
     `
 
     // Enter hint
@@ -117,10 +128,29 @@ export class PromptInput {
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
+
+    // Make draggable (exclude input from triggering drag)
+    this.cleanupDrag = makeDraggable(wrapper, {
+      exclude: 'input',
+      onDragEnd: (pos) => {
+        this.lastPosition = pos
+      },
+    })
+
+    if (position) {
+      this.lastPosition = position
+    }
+
     input.focus()
   }
 
+  getLastPosition(): UIPosition | null {
+    return this.lastPosition
+  }
+
   hide(): void {
+    this.cleanupDrag?.()
+    this.cleanupDrag = null
     if (this.wrapper) {
       this.wrapper.remove()
       this.wrapper = null

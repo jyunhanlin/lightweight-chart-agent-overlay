@@ -24,23 +24,43 @@ const series = chart.addSeries(CandlestickSeries, {
   wickDownColor: '#ef5350',
 })
 
-const data = []
-let time = new Date('2024-01-01').getTime() / 1000
-let close = 100
-for (let i = 0; i < 200; i++) {
-  const open = close + (Math.random() - 0.5) * 5
-  const high = Math.max(open, close) + Math.random() * 3
-  const low = Math.min(open, close) - Math.random() * 3
-  close = open + (Math.random() - 0.5) * 8
-  data.push({ time: time + i * 86400, open, high, low, close })
+// Fetch real BTC daily data from Binance
+async function fetchBTCData() {
+  try {
+    const response = await fetch(
+      'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=200',
+    )
+    const klines = await response.json()
+    return klines.map((k: (string | number)[]) => ({
+      time: Math.floor((k[0] as number) / 1000),
+      open: parseFloat(k[1] as string),
+      high: parseFloat(k[2] as string),
+      low: parseFloat(k[3] as string),
+      close: parseFloat(k[4] as string),
+    }))
+  } catch (err) {
+    console.warn('Failed to fetch BTC data, using generated data:', err)
+    return generateFallbackData()
+  }
 }
 
-series.setData(data as never[])
-chart.timeScale().fitContent()
+function generateFallbackData() {
+  const data = []
+  let time = new Date('2024-01-01').getTime() / 1000
+  let close = 100
+  for (let i = 0; i < 200; i++) {
+    const open = close + (Math.random() - 0.5) * 5
+    const high = Math.max(open, close) + Math.random() * 3
+    const low = Math.min(open, close) - Math.random() * 3
+    close = open + (Math.random() - 0.5) * 8
+    data.push({ time: time + i * 86400, open, high, low, close })
+  }
+  return data
+}
 
 // Mock provider: simulates 1.5s delay, returns support/resistance based on actual data
 const mockProvider: LLMProvider = {
-  async analyze(context: ChartContext, prompt: string, signal?: AbortSignal) {
+  async analyze(context: ChartContext, _prompt: string, signal?: AbortSignal) {
     await new Promise((resolve, reject) => {
       const timer = setTimeout(resolve, 1500)
       signal?.addEventListener('abort', () => {
@@ -83,34 +103,38 @@ const mockProvider: LLMProvider = {
 
 // Use real provider if API key is set, otherwise mock
 const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-const provider = apiKey
-  ? createAnthropicProvider({ apiKey })
-  : mockProvider
+const provider = apiKey ? createAnthropicProvider({ apiKey }) : mockProvider
 
 if (!apiKey) {
   console.log('Using mock provider (set VITE_ANTHROPIC_API_KEY for real AI)')
 }
 
-const agent = createAgentOverlay(chart as never, series as never, {
-  provider,
-})
+// Load data then init
+fetchBTCData().then((data) => {
+  series.setData(data as never[])
+  chart.timeScale().fitContent()
 
-agent.on('analyze-start', () => console.log('Analysis started...'))
-agent.on('analyze-complete', (result) => console.log('Analysis complete:', result))
-agent.on('error', (err) => console.error('Analysis error:', err))
+  const agent = createAgentOverlay(chart as never, series as never, {
+    provider,
+  })
 
-// Update UI badge when selection mode changes
-const badge = document.getElementById('mode-badge')!
-agent.on('selection-mode-change', (enabled) => {
-  badge.textContent = `Selection: ${enabled ? 'ON' : 'OFF'}`
-  badge.className = `mode-badge ${enabled ? 'on' : 'off'}`
-})
+  agent.on('analyze-start', () => console.log('Analysis started...'))
+  agent.on('analyze-complete', (result) => console.log('Analysis complete:', result))
+  agent.on('error', (err) => console.error('Analysis error:', err))
 
-// Toggle selection mode with 'S' key
-let selectionEnabled = false
-document.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S') {
-    selectionEnabled = !selectionEnabled
-    agent.setSelectionEnabled(selectionEnabled)
-  }
+  // Update UI badge when selection mode changes
+  const badge = document.getElementById('mode-badge')!
+  agent.on('selection-mode-change', (enabled) => {
+    badge.textContent = `Selection: ${enabled ? 'ON' : 'OFF'}`
+    badge.className = `mode-badge ${enabled ? 'on' : 'off'}`
+  })
+
+  // Toggle selection mode with 'S' key
+  let selectionEnabled = false
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 's' || e.key === 'S') {
+      selectionEnabled = !selectionEnabled
+      agent.setSelectionEnabled(selectionEnabled)
+    }
+  })
 })

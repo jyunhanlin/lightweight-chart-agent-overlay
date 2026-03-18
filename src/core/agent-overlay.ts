@@ -12,6 +12,7 @@ import { buildChartContext } from './selection/context-builder'
 import { OverlayRenderer } from './overlay/overlay-renderer'
 import { PromptInput } from './ui/prompt-input'
 import { ExplanationPopup } from './ui/explanation-popup'
+import { calculateSmartPosition } from './ui/calculate-position'
 
 interface ChartLike {
   timeScale(): {
@@ -27,6 +28,7 @@ interface SeriesLike {
   createPriceLine(options: Record<string, unknown>): unknown
   removePriceLine(line: unknown): void
   data(): readonly Record<string, unknown>[]
+  priceToCoordinate(price: number): number | null
 }
 
 function isValidPriceLine(item: unknown): boolean {
@@ -94,7 +96,7 @@ export function createAgentOverlay(
     explanationPopup.hide()
   }
 
-  rangeSelector.onSelect = (_range) => {
+  rangeSelector.onSelect = (range) => {
     // Cancel any in-flight request
     abortController?.abort()
     abortController = null
@@ -103,7 +105,16 @@ export function createAgentOverlay(
     promptInput.hide()
     explanationPopup.hide()
 
-    promptInput.show()
+    // Calculate smart position based on candle data
+    const position = calculateSmartPosition({
+      chartEl,
+      timeToCoordinate: (time) => chart.timeScale().timeToCoordinate(time),
+      priceToCoordinate: (price) => series.priceToCoordinate(price),
+      range,
+      seriesData: series.data(),
+    })
+
+    promptInput.show(position)
   }
 
   promptInput.onSubmit = async (prompt: string) => {
@@ -128,7 +139,9 @@ export function createAgentOverlay(
       renderer.render(result)
 
       if (result.explanation) {
-        explanationPopup.show(result.explanation)
+        // Use prompt's last position (might have been dragged)
+        const pos = promptInput.getLastPosition()
+        explanationPopup.show(result.explanation, pos ?? undefined)
       }
 
       promptInput.hide()
