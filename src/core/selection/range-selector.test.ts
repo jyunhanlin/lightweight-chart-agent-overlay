@@ -106,6 +106,22 @@ describe('RangeSelector', () => {
     expect(onDismiss).toHaveBeenCalledOnce()
   })
 
+  it('setRange should set selection highlight without triggering callbacks', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    const onSelect = vi.fn()
+    const onDismiss = vi.fn()
+    selector.onSelect = onSelect
+    selector.onDismiss = onDismiss
+
+    selector.setRange({ from: 100, to: 200 })
+
+    expect(selector.getRange()).toEqual({ from: 100, to: 200 })
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
+
   it('destroy removes event listeners and detaches primitive', () => {
     const chart = createMockChart()
     const series = createMockSeries()

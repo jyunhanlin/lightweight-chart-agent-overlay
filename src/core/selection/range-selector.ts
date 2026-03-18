@@ -116,6 +116,10 @@ export class RangeSelector {
     return this.primitive.getRange()
   }
 
+  setRange(range: { from: TimeValue; to: TimeValue }): void {
+    this.primitive.setRange(range)
+  }
+
   clearSelection(): void {
     this.primitive.clearRange()
   }

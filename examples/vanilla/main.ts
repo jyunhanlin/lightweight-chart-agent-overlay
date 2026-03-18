@@ -76,7 +76,12 @@ const mockProvider: LLMProvider = {
     const high = Math.max(...prices)
 
     return {
-      explanation: `Analyzed ${context.data.length} candles. Support found at ${low.toFixed(2)} (range low). Resistance at ${high.toFixed(2)} (range high). The price action shows consolidation between these levels.`,
+      explanation: {
+        sections: [
+          { label: 'Technical', content: `Analyzed ${context.data.length} candles. Support found at ${low.toFixed(2)} (range low). Resistance at ${high.toFixed(2)} (range high).` },
+          { label: 'Sentiment', content: 'The price action shows consolidation between these levels with neutral sentiment.' },
+        ],
+      },
       priceLines: [
         { price: low, title: 'Support', color: '#26a69a', lineStyle: 'dashed' as const },
         { price: high, title: 'Resistance', color: '#ef5350', lineStyle: 'dashed' as const },
@@ -103,7 +108,15 @@ const mockProvider: LLMProvider = {
 
 // Use real provider if API key is set, otherwise mock
 const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-const provider = apiKey ? createAnthropicProvider({ apiKey }) : mockProvider
+const provider = apiKey
+  ? createAnthropicProvider({
+      apiKey,
+      models: [
+        { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+        { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+      ],
+    })
+  : mockProvider
 
 if (!apiKey) {
   console.log('Using mock provider (set VITE_ANTHROPIC_API_KEY for real AI)')
@@ -116,6 +129,28 @@ fetchBTCData().then((data) => {
 
   const agent = createAgentOverlay(chart as never, series as never, {
     provider,
+    presets: [
+      {
+        label: 'Technical',
+        systemPrompt: 'Focus on technical analysis: support/resistance, patterns, indicators. Include priceLines and markers.',
+        defaultPrompt: 'Analyze the technical aspects of this range',
+      },
+      {
+        label: 'Fundamental',
+        systemPrompt: 'Focus on macroeconomic context, news events, and fundamental factors. Only return explanation sections, no priceLines or markers.',
+        defaultPrompt: 'Analyze relevant macro events and fundamentals',
+      },
+      {
+        label: 'Smart Money',
+        systemPrompt: 'Analyze volume patterns, unusual activity, and institutional behavior. Include markers for anomalies.',
+        defaultPrompt: 'Analyze smart money signals in this range',
+      },
+      {
+        label: 'Sentiment',
+        systemPrompt: 'Assess market sentiment from price action patterns. Only return explanation sections, no priceLines or markers.',
+        defaultPrompt: 'What is the market sentiment in this range?',
+      },
+    ],
   })
 
   agent.on('analyze-start', () => console.log('Analysis started...'))

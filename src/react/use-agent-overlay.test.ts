@@ -16,7 +16,9 @@ vi.mock('../core/agent-overlay', () => ({
 const mockCreateAgentOverlay = vi.mocked(createAgentOverlay)
 
 const mockProvider: LLMProvider = {
-  analyze: vi.fn().mockResolvedValue({}),
+  analyze: vi.fn((_context: unknown, _prompt: string, _signal?: AbortSignal, _options?: unknown) =>
+    Promise.resolve({}),
+  ),
 }
 
 describe('useAgentOverlay', () => {
