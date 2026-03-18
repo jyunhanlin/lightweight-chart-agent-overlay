@@ -20,6 +20,19 @@ describe('createAnthropicProvider', () => {
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
+  it('should expose models when provided', () => {
+    const provider = createAnthropicProvider({
+      apiKey: 'test',
+      models: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }],
+    })
+    expect(provider.models).toEqual([{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }])
+  })
+
+  it('should have undefined models when not provided', () => {
+    const provider = createAnthropicProvider({ apiKey: 'test' })
+    expect(provider.models).toBeUndefined()
+  })
+
   it('calls fetch with correct Anthropic API shape', async () => {
     const mockResponse = {
       explanation: 'Support at 100',
@@ -51,6 +64,30 @@ describe('createAnthropicProvider', () => {
 
     expect(result.priceLines).toHaveLength(1)
     expect(result.priceLines![0].price).toBe(100)
+  })
+
+  it('should use options.model when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'test' })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { model: 'claude-sonnet-4-6' })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.model).toBe('claude-sonnet-4-6')
+  })
+
+  it('should append additionalSystemPrompt', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'test' })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, {
+      additionalSystemPrompt: 'Extra instructions',
+    })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.system).toContain('Extra instructions')
   })
 
   it('throws on non-ok response', async () => {

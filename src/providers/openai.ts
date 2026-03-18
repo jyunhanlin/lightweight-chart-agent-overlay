@@ -1,6 +1,12 @@
 // src/providers/openai.ts
 
-import type { LLMProvider, ChartContext, AnalysisResult } from '../core/types'
+import type {
+  LLMProvider,
+  ChartContext,
+  AnalysisResult,
+  ModelOption,
+  AnalyzeOptions,
+} from '../core/types'
 import { extractJsonFromText } from './parse-response'
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -19,6 +25,10 @@ You MUST respond with ONLY a JSON object (no markdown, no code fences) matching 
   "markers": [{ "time": number_or_string, "position": "aboveBar"|"belowBar", "shape": "circle"|"square"|"arrowUp"|"arrowDown", "text": string, "color": string }]
 }
 
+"explanation" can be a string OR structured sections:
+  { "sections": [{ "label": "section name", "content": "analysis text" }] }
+Use sections when multiple analysis perspectives are requested.
+
 Only include priceLines and markers that are relevant to the user's request. All fields except "price" (for priceLines) and "time"/"position"/"shape" (for markers) are optional.`
 
 interface OpenAIProviderOptions {
@@ -26,6 +36,7 @@ interface OpenAIProviderOptions {
   readonly model?: string
   readonly systemPrompt?: string
   readonly baseURL?: string
+  readonly models?: readonly ModelOption[]
 }
 
 export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvider {
@@ -34,11 +45,18 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
   const baseURL = options.baseURL ?? API_URL
 
   return {
+    models: options.models,
     async analyze(
       context: ChartContext,
       prompt: string,
       signal?: AbortSignal,
+      analyzeOptions?: AnalyzeOptions,
     ): Promise<AnalysisResult> {
+      const requestModel = analyzeOptions?.model ?? model
+      const finalSystemPrompt = analyzeOptions?.additionalSystemPrompt
+        ? `${systemPrompt}\n\n${analyzeOptions.additionalSystemPrompt}`
+        : systemPrompt
+
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
       const response = await fetch(baseURL, {
@@ -48,9 +66,9 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model,
+          model: requestModel,
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: finalSystemPrompt },
             { role: 'user', content: userMessage },
           ],
           max_tokens: 1024,

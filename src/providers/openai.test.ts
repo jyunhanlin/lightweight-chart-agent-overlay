@@ -17,6 +17,19 @@ describe('createOpenAIProvider', () => {
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
+  it('should expose models when provided', () => {
+    const provider = createOpenAIProvider({
+      apiKey: 'test',
+      models: [{ id: 'gpt-4o', label: 'GPT-4o' }],
+    })
+    expect(provider.models).toEqual([{ id: 'gpt-4o', label: 'GPT-4o' }])
+  })
+
+  it('should have undefined models when not provided', () => {
+    const provider = createOpenAIProvider({ apiKey: 'test' })
+    expect(provider.models).toBeUndefined()
+  })
+
   it('calls OpenAI chat completions API', async () => {
     const mockResponse = { explanation: 'Bearish trend' }
 
@@ -42,6 +55,37 @@ describe('createOpenAIProvider', () => {
     )
 
     expect(result.explanation).toBe('Bearish trend')
+  })
+
+  it('should use options.model when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"explanation":"test"}' } }],
+        }),
+    })
+    const provider = createOpenAIProvider({ apiKey: 'test' })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { model: 'gpt-4o' })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.model).toBe('gpt-4o')
+  })
+
+  it('should append additionalSystemPrompt', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"explanation":"test"}' } }],
+        }),
+    })
+    const provider = createOpenAIProvider({ apiKey: 'test' })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, {
+      additionalSystemPrompt: 'Extra instructions',
+    })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    const systemMessage = body.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMessage.content).toContain('Extra instructions')
   })
 
   it('throws on non-ok response', async () => {
