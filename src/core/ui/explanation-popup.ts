@@ -123,7 +123,7 @@ function buildCloseButtonOnly(s: (typeof THEME_COLORS)[Theme], onClose: () => vo
   return row
 }
 
-function buildPromptBubble(prompt: string, s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildPromptBubble(prompt: string, _s: (typeof THEME_COLORS)[Theme]): HTMLElement {
   const wrapper = document.createElement('div')
   wrapper.style.cssText = `
     display: flex; justify-content: flex-end;
@@ -144,7 +144,7 @@ function buildPromptBubble(prompt: string, s: (typeof THEME_COLORS)[Theme]): HTM
   return wrapper
 }
 
-function buildQuickIndicator(entry: HistoryEntry, s: (typeof THEME_COLORS)[Theme]): HTMLElement {
+function buildQuickIndicator(entry: HistoryEntry, _s: (typeof THEME_COLORS)[Theme]): HTMLElement {
   const bar = document.createElement('div')
   bar.setAttribute('data-agent-overlay-quick-indicator', '')
 

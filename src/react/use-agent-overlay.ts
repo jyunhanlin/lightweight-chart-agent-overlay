@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createAgentOverlay } from '../core/agent-overlay'
-import type { AgentOverlay, AgentOverlayOptions, AnalysisResult } from '../core/types'
+import type { AgentOverlay, AgentOverlayOptions, NormalizedAnalysisResult } from '../core/types'
 
 interface ChartLike {
   timeScale(): unknown
@@ -20,7 +20,7 @@ interface UseAgentOverlayReturn {
   setSelectionEnabled: (enabled: boolean) => void
   isAnalyzing: boolean
   error: Error | null
-  lastResult: AnalysisResult | null
+  lastResult: NormalizedAnalysisResult | null
 }
 
 export function useAgentOverlay(
@@ -30,7 +30,7 @@ export function useAgentOverlay(
 ): UseAgentOverlayReturn {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [lastResult, setLastResult] = useState<AnalysisResult | null>(null)
+  const [lastResult, setLastResult] = useState<NormalizedAnalysisResult | null>(null)
   const agentRef = useRef<AgentOverlay | null>(null)
 
   useEffect(() => {

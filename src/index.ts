@@ -1,4 +1,5 @@
 export { createAgentOverlay } from './core/agent-overlay'
+export { defaultPromptBuilder } from './core/prompt-builder'
 export type {
   AgentOverlay,
   AgentOverlayOptions,
