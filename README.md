@@ -97,9 +97,11 @@ createAgentOverlay(chart, series, {
   theme: 'dark',                     // optional: 'dark' | 'light'
   presets: DEFAULT_PRESETS,          // optional: override built-in presets
   promptBuilder: defaultPromptBuilder, // optional: custom prompt construction
-  dataAccessor: (range) => data,     // optional: custom data extraction
+  dataAccessor: (range) => data,     // optional: custom data source
 })
 ```
+
+By default, candle data is extracted from `series.data()` filtered by the selected range. Use `dataAccessor` when your data lives outside the chart (e.g., a separate store with extra fields like volume from another API).
 
 ### Built-in Presets
 
