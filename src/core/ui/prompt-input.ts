@@ -5,7 +5,6 @@ import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
 import { DropdownManager } from './dropdown-manager'
-import type { Theme } from './theme'
 
 const SUBMIT_ACTIVE_BG = '#2196f3'
 const SUBMIT_INACTIVE_BG = '#555'
@@ -14,12 +13,10 @@ const ERROR_DISMISS_MS = 5000
 export interface PromptInputOptions {
   readonly models?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
-  readonly theme?: Theme
 }
 
 export class PromptInput {
   private readonly container: HTMLElement
-  private theme: Theme
   private readonly models: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
 
@@ -37,7 +34,6 @@ export class PromptInput {
 
   constructor(container: HTMLElement, options?: PromptInputOptions) {
     this.container = container
-    this.theme = options?.theme ?? 'dark'
     this.models = options?.models ?? []
     this.presets = options?.presets ?? []
   }
@@ -107,7 +103,6 @@ export class PromptInput {
       modelWrapper.setAttribute('data-agent-overlay-model-dropdown', '')
       this.modelDropdown = new Dropdown({
         items: [...this.models],
-        theme: this.theme,
         multiSelect: false,
         placeholder: 'Model',
         manager: this.dropdownManager,
@@ -148,7 +143,6 @@ export class PromptInput {
       presetWrapper.setAttribute('data-agent-overlay-preset-dropdown', '')
       this.presetDropdown = new Dropdown({
         items: this.presets.map((p, i) => ({ id: `preset-${i}`, label: p.label })),
-        theme: this.theme,
         multiSelect: true,
         placeholder: 'Presets',
         manager: this.dropdownManager,
@@ -279,15 +273,6 @@ export class PromptInput {
     }
 
     textarea.focus()
-  }
-
-  setTheme(theme: Theme): void {
-    if (this.theme === theme) return
-    this.theme = theme
-    // CSS variables cascade from chartEl; only dropdowns need explicit update
-    // (their panels are rebuilt with direct color values on next open)
-    this.modelDropdown?.setTheme(theme)
-    this.presetDropdown?.setTheme(theme)
   }
 
   getLastPosition(): UIPosition | null {

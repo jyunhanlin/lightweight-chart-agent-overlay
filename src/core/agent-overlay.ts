@@ -71,7 +71,7 @@ export function createAgentOverlay(
   applyThemeVars(chartEl, theme)
 
   const historyStore = createHistoryStore()
-  const historyButton = new HistoryButton(chartEl, theme)
+  const historyButton = new HistoryButton(chartEl)
   historyButton.setCount(0)
 
   let currentHistoryIndex = -1
@@ -81,9 +81,8 @@ export function createAgentOverlay(
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
     presets,
-    theme,
   })
-  const explanationPopup = new ExplanationPopup(chartEl, theme)
+  const explanationPopup = new ExplanationPopup(chartEl)
 
   explanationPopup.onClose = () => {
     renderer.clear()
@@ -307,10 +306,6 @@ export function createAgentOverlay(
       if (theme === newTheme) return
       theme = newTheme
       applyThemeVars(chartEl, newTheme)
-      historyButton.setTheme(newTheme)
-      // Dropdown panels need theme for rebuild on next open
-      promptInput.setTheme(newTheme)
-      explanationPopup.setTheme(newTheme)
     },
 
     on<K extends keyof AgentOverlayEventMap>(

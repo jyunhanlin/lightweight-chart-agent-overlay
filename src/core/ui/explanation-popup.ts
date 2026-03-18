@@ -7,7 +7,6 @@ import {
   type UIPosition,
 } from './calculate-position'
 import { makeDraggable } from './make-draggable'
-import type { Theme } from './theme'
 
 export interface ExplanationShowOptions {
   readonly entry: HistoryEntry
@@ -217,7 +216,6 @@ function buildSections(entry: HistoryEntry): HTMLElement {
 
 export class ExplanationPopup {
   private readonly container: HTMLElement
-  private theme: Theme
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
   private readonly handleEscape: (e: KeyboardEvent) => void
@@ -225,9 +223,8 @@ export class ExplanationPopup {
   onClose: (() => void) | null = null
   onNavigate: ((direction: -1 | 1) => void) | null = null
 
-  constructor(container: HTMLElement, theme: Theme = 'dark') {
+  constructor(container: HTMLElement) {
     this.container = container
-    this.theme = theme
     this.handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') this.hide()
     }
@@ -291,11 +288,6 @@ export class ExplanationPopup {
 
     // Make draggable (exclude buttons from triggering drag)
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
-  }
-
-  setTheme(theme: Theme): void {
-    this.theme = theme
-    // CSS variables cascade from chartEl — no per-wrapper update needed
   }
 
   hide(): void {

@@ -150,8 +150,23 @@ export function applyThemeVars(el: HTMLElement, theme: Theme): void {
   el.style.setProperty('--ao-quick-border', t.popup.quickBorder)
   el.style.setProperty('--ao-quick-text', t.popup.quickText)
 
-  // Dropdown trigger (reuses base border/text)
+  // Dropdown
+  el.style.setProperty('--dd-bg', t.dropdown.bg)
   el.style.setProperty('--dd-btn-bg', t.dropdown.btnBg)
   el.style.setProperty('--dd-border', t.base.border)
   el.style.setProperty('--dd-text', t.base.text)
+  el.style.setProperty('--dd-hover-bg', t.dropdown.hoverBg)
+  el.style.setProperty('--dd-selected-text', t.dropdown.selectedText)
+  el.style.setProperty('--dd-selected-bg', t.dropdown.selectedBg)
+  el.style.setProperty('--dd-selected-border', t.dropdown.selectedBorder)
+  el.style.setProperty('--dd-dim-text', t.dropdown.dimText)
+  el.style.setProperty('--dd-run-color', t.dropdown.runColor)
+  el.style.setProperty('--dd-run-bg', t.dropdown.runBg)
+  el.style.setProperty('--dd-disabled-text', t.dropdown.disabledText)
+
+  // History
+  el.style.setProperty('--ao-history-bg', t.history.bg)
+  el.style.setProperty('--ao-history-text', t.history.text)
+  el.style.setProperty('--ao-badge-bg', t.history.badgeBg)
+  el.style.setProperty('--ao-badge-text', t.history.badgeText)
 }

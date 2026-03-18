@@ -1,7 +1,5 @@
 // src/core/ui/dropdown.ts
 
-import { type Theme, THEMES } from './theme'
-
 interface DropdownItem {
   readonly id: string
   readonly label: string
@@ -9,18 +7,12 @@ interface DropdownItem {
 
 interface DropdownOptions {
   readonly items: readonly DropdownItem[]
-  readonly theme?: Theme
   readonly multiSelect?: boolean
   readonly showRun?: boolean
   readonly placeholder?: string
   readonly onSelect?: (selected: readonly DropdownItem[]) => void
   readonly onRun?: (selected: readonly DropdownItem[]) => void
   readonly manager?: { closeAllExcept(keep: Dropdown): void }
-}
-
-function getDropdownColors(theme: Theme) {
-  const { base, dropdown } = THEMES[theme]
-  return { ...base, ...dropdown }
 }
 
 function buildButtonLabel(
@@ -41,7 +33,6 @@ export class Dropdown {
   readonly element: HTMLElement
 
   private readonly options: DropdownOptions
-  private theme: Theme
   private readonly placeholder: string
   private selectedIds: ReadonlySet<string>
   private isOpen: boolean
@@ -51,7 +42,6 @@ export class Dropdown {
 
   constructor(options: DropdownOptions) {
     this.options = options
-    this.theme = options.theme ?? 'dark'
     this.placeholder = options.placeholder ?? '\u2014'
     this.selectedIds = new Set()
     this.isOpen = false
@@ -93,12 +83,11 @@ export class Dropdown {
   }
 
   private buildPanel(): HTMLElement {
-    const s = getDropdownColors(this.theme)
     const panel = document.createElement('div')
     panel.setAttribute('data-dropdown-panel', '')
     panel.style.cssText = `
       position: absolute; z-index: 1001;
-      background: ${s.bg}; border: 1px solid ${s.border};
+      background: var(--dd-bg); border: 1px solid var(--dd-border);
       border-radius: 6px; min-width: 160px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       overflow: hidden; margin-top: 4px;
@@ -106,17 +95,17 @@ export class Dropdown {
     panel.addEventListener('mousedown', (e) => e.stopPropagation())
 
     for (const item of this.options.items) {
-      panel.appendChild(this.buildItem(item, s))
+      panel.appendChild(this.buildItem(item))
     }
 
     if (this.options.multiSelect && this.options.showRun) {
-      panel.appendChild(this.buildRunButton(s))
+      panel.appendChild(this.buildRunButton())
     }
 
     return panel
   }
 
-  private buildItem(item: DropdownItem, s: ReturnType<typeof getDropdownColors>): HTMLElement {
+  private buildItem(item: DropdownItem): HTMLElement {
     const row = document.createElement('div')
     row.setAttribute('data-dropdown-item', item.id)
     const isSelected = this.selectedIds.has(item.id)
@@ -124,21 +113,22 @@ export class Dropdown {
     row.style.cssText = `
       display: flex; align-items: center; gap: 8px;
       padding: 8px 12px; cursor: pointer; font-size: 13px;
-      color: ${isSelected ? s.selectedText : s.text};
-      background: ${isSelected ? s.selectedBg : 'transparent'};
+      color: ${isSelected ? 'var(--dd-selected-text)' : 'var(--dd-text)'};
+      background: ${isSelected ? 'var(--dd-selected-bg)' : 'transparent'};
     `
 
     if (this.options.multiSelect) {
       const checkbox = document.createElement('div')
       checkbox.setAttribute('data-dropdown-checkbox', item.id)
       checkbox.style.cssText = `
-        width: 14px; height: 14px; border: 1px solid ${isSelected ? s.selectedText : s.dimText};
+        width: 14px; height: 14px;
+        border: 1px solid ${isSelected ? 'var(--dd-selected-text)' : 'var(--dd-dim-text)'};
         border-radius: 3px; display: flex; align-items: center; justify-content: center;
-        background: ${isSelected ? s.selectedBg : 'transparent'}; flex-shrink: 0;
+        background: ${isSelected ? 'var(--dd-selected-bg)' : 'transparent'}; flex-shrink: 0;
       `
       if (isSelected) {
         checkbox.textContent = '\u2713'
-        checkbox.style.color = s.selectedText
+        checkbox.style.color = 'var(--dd-selected-text)'
         checkbox.style.fontSize = '11px'
       }
       row.appendChild(checkbox)
@@ -150,11 +140,11 @@ export class Dropdown {
 
     row.addEventListener('mouseover', () => {
       if (!this.selectedIds.has(item.id)) {
-        row.style.background = s.hoverBg
+        row.style.background = 'var(--dd-hover-bg)'
       }
     })
     row.addEventListener('mouseout', () => {
-      row.style.background = this.selectedIds.has(item.id) ? s.selectedBg : 'transparent'
+      row.style.background = this.selectedIds.has(item.id) ? 'var(--dd-selected-bg)' : 'transparent'
     })
 
     row.addEventListener('click', () => this.handleItemClick(item))
@@ -162,16 +152,16 @@ export class Dropdown {
     return row
   }
 
-  private buildRunButton(s: ReturnType<typeof getDropdownColors>): HTMLElement {
+  private buildRunButton(): HTMLElement {
     const hasSelection = this.selectedIds.size > 0
     const btn = document.createElement('button')
     btn.setAttribute('data-dropdown-run', '')
     btn.textContent = 'Run'
     btn.disabled = !hasSelection
     btn.style.cssText = `
-      width: 100%; padding: 8px 12px; border: none; border-top: 1px solid ${s.border};
-      background: ${hasSelection ? s.runBg : 'transparent'};
-      color: ${hasSelection ? s.runColor : s.disabledText};
+      width: 100%; padding: 8px 12px; border: none; border-top: 1px solid var(--dd-border);
+      background: ${hasSelection ? 'var(--dd-run-bg)' : 'transparent'};
+      color: ${hasSelection ? 'var(--dd-run-color)' : 'var(--dd-disabled-text)'};
       cursor: ${hasSelection ? 'pointer' : 'default'};
       font-size: 13px; font-family: inherit; text-align: left;
     `
@@ -216,14 +206,13 @@ export class Dropdown {
 
   private refreshPanel(): void {
     if (!this.panel) return
-    const s = getDropdownColors(this.theme)
     const runBtn = this.panel.querySelector('[data-dropdown-run]')
     const items = Array.from(this.panel.querySelectorAll('[data-dropdown-item]'))
     for (const item of items) {
       item.remove()
     }
     for (const item of this.options.items) {
-      const row = this.buildItem(item, s)
+      const row = this.buildItem(item)
       if (runBtn) {
         this.panel.insertBefore(row, runBtn)
       } else {
@@ -233,8 +222,8 @@ export class Dropdown {
     if (runBtn instanceof HTMLButtonElement) {
       const hasSelection = this.selectedIds.size > 0
       runBtn.disabled = !hasSelection
-      runBtn.style.background = hasSelection ? s.runBg : 'transparent'
-      runBtn.style.color = hasSelection ? s.runColor : s.disabledText
+      runBtn.style.background = hasSelection ? 'var(--dd-run-bg)' : 'transparent'
+      runBtn.style.color = hasSelection ? 'var(--dd-run-color)' : 'var(--dd-disabled-text)'
       runBtn.style.cursor = hasSelection ? 'pointer' : 'default'
     }
   }
@@ -282,14 +271,6 @@ export class Dropdown {
     if (this.isOpen) {
       this.refreshPanel()
     }
-  }
-
-  setTheme(theme: Theme): void {
-    if (this.theme === theme) return
-    this.theme = theme
-    // CSS variables cascade from chartEl for the trigger button.
-    // Close panel — next open will use new theme colors.
-    this.close()
   }
 
   destroy(): void {
