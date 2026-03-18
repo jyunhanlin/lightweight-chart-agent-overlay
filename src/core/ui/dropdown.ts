@@ -15,7 +15,7 @@ interface DropdownOptions {
   readonly placeholder?: string
   readonly onSelect?: (selected: readonly DropdownItem[]) => void
   readonly onRun?: (selected: readonly DropdownItem[]) => void
-  readonly onOpen?: () => void
+  readonly manager?: { closeAllExcept(keep: Dropdown): void }
 }
 
 const THEME_COLORS: Record<
@@ -295,7 +295,7 @@ export class Dropdown {
 
   private open(): void {
     if (this.isOpen) return
-    this.options.onOpen?.()
+    this.options.manager?.closeAllExcept(this)
     this.isOpen = true
     this.panel = this.buildPanel()
 

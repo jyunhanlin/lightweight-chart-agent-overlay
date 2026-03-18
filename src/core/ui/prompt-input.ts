@@ -3,6 +3,7 @@ import type { UIPosition } from './calculate-position'
 import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
+import { DropdownManager } from './dropdown-manager'
 
 type Theme = 'light' | 'dark'
 
@@ -49,6 +50,7 @@ export class PromptInput {
   private lastPosition: UIPosition | null = null
   private modelDropdown: Dropdown | null = null
   private presetDropdown: Dropdown | null = null
+  private dropdownManager: DropdownManager | null = null
   private errorTimer: ReturnType<typeof setTimeout> | null = null
 
   onSubmit: ((prompt: string) => void) | null = null
@@ -77,7 +79,7 @@ export class PromptInput {
       z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
       border-radius: 8px; overflow: visible;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      cursor: grab; min-width: 320px;
+      cursor: grab; min-width: 420px;
     `
 
     // ── Close button (top-right) ────────────────────────────────────────────
@@ -114,6 +116,9 @@ export class PromptInput {
       background: ${s.toolbar};
     `
 
+    // Dropdown manager for mutual exclusion
+    this.dropdownManager = new DropdownManager()
+
     // Model dropdown
     if (this.models.length > 0) {
       const modelWrapper = document.createElement('span')
@@ -123,8 +128,9 @@ export class PromptInput {
         theme: this.theme,
         multiSelect: false,
         placeholder: 'Model',
-        onOpen: () => this.presetDropdown?.close(),
+        manager: this.dropdownManager,
       })
+      this.dropdownManager.register(this.modelDropdown)
       modelWrapper.appendChild(this.modelDropdown.element)
       toolbar.appendChild(modelWrapper)
     }
@@ -139,7 +145,7 @@ export class PromptInput {
         multiSelect: true,
         showRun: true,
         placeholder: 'Presets',
-        onOpen: () => this.modelDropdown?.close(),
+        manager: this.dropdownManager,
         onRun: (selected) => {
           const selectedPresets = selected.map((item) => {
             const idx = parseInt(item.id.replace('preset-', ''), 10)
@@ -148,6 +154,7 @@ export class PromptInput {
           this.onQuickRun?.(selectedPresets)
         },
       })
+      this.dropdownManager.register(this.presetDropdown)
       presetWrapper.appendChild(this.presetDropdown.element)
       toolbar.appendChild(presetWrapper)
     }
@@ -340,6 +347,8 @@ export class PromptInput {
     }
     this.cleanupDrag?.()
     this.cleanupDrag = null
+    this.dropdownManager?.destroy()
+    this.dropdownManager = null
     this.modelDropdown?.destroy()
     this.modelDropdown = null
     this.presetDropdown?.destroy()

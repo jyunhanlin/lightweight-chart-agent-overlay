@@ -149,9 +149,6 @@ export function createAgentOverlay(
       )
       const result: NormalizedAnalysisResult = validateResult(rawResult)
 
-      renderer.clear()
-      renderer.render(result)
-
       const entry = {
         prompt: params.prompt,
         isQuickRun: params.isQuickRun,
@@ -165,6 +162,9 @@ export function createAgentOverlay(
       historyButton.setCount(historyStore.size())
       currentHistoryIndex = historyStore.size() - 1
 
+      // Show popup BEFORE rendering overlays — show() internally calls hide()
+      // which triggers onClose → renderer.clear(). Rendering after ensures
+      // the new overlays are not immediately cleared.
       if (result.explanation) {
         const pos = promptInput.getLastPosition()
         explanationPopup.show({
@@ -176,6 +176,8 @@ export function createAgentOverlay(
       }
 
       promptInput.hide()
+      renderer.clear()
+      renderer.render(result)
       emitter.emit('analyze-complete', result)
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
