@@ -15,6 +15,7 @@ interface DropdownOptions {
   readonly placeholder?: string
   readonly onSelect?: (selected: readonly DropdownItem[]) => void
   readonly onRun?: (selected: readonly DropdownItem[]) => void
+  readonly onOpen?: () => void
 }
 
 const THEME_COLORS: Record<
@@ -72,7 +73,7 @@ function buildButtonLabel(
   if (!multiSelect) {
     return selected.length > 0 ? selected[0].label : placeholder
   }
-  if (selected.length === 0) return '\u2014'
+  if (selected.length === 0) return placeholder
   if (selected.length === 1) return selected[0].label
   if (selected.length === 2) return `${selected[0].label}, ${selected[1].label}`
   return `${selected[0].label}, ${selected[1].label} +${selected.length - 2}`
@@ -285,8 +286,16 @@ export class Dropdown {
     }
   }
 
+  close(): void {
+    if (!this.isOpen) return
+    this.isOpen = false
+    this.panel?.remove()
+    this.panel = null
+  }
+
   private open(): void {
     if (this.isOpen) return
+    this.options.onOpen?.()
     this.isOpen = true
     this.panel = this.buildPanel()
 
@@ -301,13 +310,6 @@ export class Dropdown {
 
     const parent = this.element.offsetParent ?? this.element.parentElement ?? document.body
     parent.appendChild(this.panel)
-  }
-
-  private close(): void {
-    if (!this.isOpen) return
-    this.isOpen = false
-    this.panel?.remove()
-    this.panel = null
   }
 
   private toggle(): void {

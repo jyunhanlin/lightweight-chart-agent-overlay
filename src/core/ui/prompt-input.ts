@@ -75,7 +75,7 @@ export class PromptInput {
     wrapper.style.cssText = `
       position: absolute; left: ${posLeft}px; top: ${posTop}px;
       z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
-      border-radius: 8px; overflow: hidden;
+      border-radius: 8px; overflow: visible;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       cursor: grab; min-width: 320px;
     `
@@ -123,6 +123,7 @@ export class PromptInput {
         theme: this.theme,
         multiSelect: false,
         placeholder: 'Model',
+        onOpen: () => this.presetDropdown?.close(),
       })
       modelWrapper.appendChild(this.modelDropdown.element)
       toolbar.appendChild(modelWrapper)
@@ -137,7 +138,8 @@ export class PromptInput {
         theme: this.theme,
         multiSelect: true,
         showRun: true,
-        placeholder: 'Preset',
+        placeholder: 'Presets',
+        onOpen: () => this.modelDropdown?.close(),
         onRun: (selected) => {
           const selectedPresets = selected.map((item) => {
             const idx = parseInt(item.id.replace('preset-', ''), 10)
@@ -199,6 +201,7 @@ export class PromptInput {
     progressBar.style.cssText = `
       position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
       background: ${s.border}; overflow: hidden; display: none;
+      border-radius: 0 0 8px 8px;
     `
     const progressFill = document.createElement('div')
     progressFill.style.cssText = `
