@@ -321,6 +321,8 @@ export class PromptInput {
     if (this.wrapper) {
       applyThemeVars(this.wrapper, theme)
     }
+    this.modelDropdown?.setTheme(theme)
+    this.presetDropdown?.setTheme(theme)
   }
 
   getLastPosition(): UIPosition | null {

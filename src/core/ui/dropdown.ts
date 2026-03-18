@@ -65,6 +65,13 @@ const THEME_COLORS: Record<
   },
 }
 
+function applyButtonThemeVars(el: HTMLElement, theme: Theme): void {
+  const s = THEME_COLORS[theme]
+  el.style.setProperty('--dd-btn-bg', s.btnBg)
+  el.style.setProperty('--dd-border', s.border)
+  el.style.setProperty('--dd-text', s.text)
+}
+
 function buildButtonLabel(
   selected: readonly DropdownItem[],
   placeholder: string,
@@ -83,7 +90,7 @@ export class Dropdown {
   readonly element: HTMLElement
 
   private readonly options: DropdownOptions
-  private readonly theme: Theme
+  private theme: Theme
   private readonly placeholder: string
   private selectedIds: ReadonlySet<string>
   private isOpen: boolean
@@ -119,11 +126,11 @@ export class Dropdown {
   }
 
   private buildButton(): HTMLElement {
-    const s = THEME_COLORS[this.theme]
     const btn = document.createElement('button')
     btn.setAttribute('data-dropdown-trigger', '')
-    btn.style.cssText = `
-      background: ${s.btnBg}; border: 1px solid ${s.border}; color: ${s.text};
+    applyButtonThemeVars(btn, this.theme)
+    btn.style.cssText += `
+      background: var(--dd-btn-bg); border: 1px solid var(--dd-border); color: var(--dd-text);
       border-radius: 4px; padding: 4px 10px; font-size: 13px; cursor: pointer;
       font-family: inherit; white-space: nowrap;
     `
@@ -260,14 +267,11 @@ export class Dropdown {
   private refreshPanel(): void {
     if (!this.panel) return
     const s = THEME_COLORS[this.theme]
-    // Rebuild item rows (simpler than patching individual elements)
     const runBtn = this.panel.querySelector('[data-dropdown-run]')
-    // Remove all item rows
     const items = Array.from(this.panel.querySelectorAll('[data-dropdown-item]'))
     for (const item of items) {
       item.remove()
     }
-    // Re-insert items before run button
     for (const item of this.options.items) {
       const row = this.buildItem(item, s)
       if (runBtn) {
@@ -276,7 +280,6 @@ export class Dropdown {
         this.panel.appendChild(row)
       }
     }
-    // Refresh run button state if present
     if (runBtn instanceof HTMLButtonElement) {
       const hasSelection = this.selectedIds.size > 0
       runBtn.disabled = !hasSelection
@@ -299,7 +302,6 @@ export class Dropdown {
     this.isOpen = true
     this.panel = this.buildPanel()
 
-    // Position panel below the button
     const btnRect = this.element.getBoundingClientRect()
     const parentRect = this.element.offsetParent?.getBoundingClientRect()
     const offsetTop = parentRect ? btnRect.bottom - parentRect.top : btnRect.bottom
@@ -330,6 +332,14 @@ export class Dropdown {
     if (this.isOpen) {
       this.refreshPanel()
     }
+  }
+
+  setTheme(theme: Theme): void {
+    if (this.theme === theme) return
+    this.theme = theme
+    applyButtonThemeVars(this.element, theme)
+    // Close panel — next open will use new theme
+    this.close()
   }
 
   destroy(): void {

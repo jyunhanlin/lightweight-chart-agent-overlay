@@ -131,6 +131,9 @@ fetchBTCData().then((data) => {
     provider,
   })
 
+  // Expose for console testing
+  ;(window as never as Record<string, unknown>).agent = agent
+
   agent.on('analyze-start', () => console.log('Analysis started...'))
   agent.on('analyze-complete', (result) => console.log('Analysis complete:', result))
   agent.on('error', (err) => console.error('Analysis error:', err))
