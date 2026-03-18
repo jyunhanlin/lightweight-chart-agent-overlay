@@ -99,7 +99,7 @@ interface LLMProvider {
 interface AnalysisPreset {
   readonly label: string
   readonly systemPrompt: string
-  readonly defaultPrompt: string
+  readonly quickPrompt: string   // prompt sent to LLM on quick run (⌘↵ with empty text)
 }
 ```
 
@@ -124,7 +124,7 @@ interface PromptBuilder {
 
 The package provides a `defaultPromptBuilder`:
 - **Custom prompt**: `prompt` = user's text, `additionalSystemPrompt` = selected presets' `systemPrompt` values joined by `\n\n`.
-- **Quick run**: `prompt` = selected presets' `defaultPrompt` values joined by `\n\n`, `additionalSystemPrompt` = same merge.
+- **Quick run**: `prompt` = selected presets' `quickPrompt` values joined by `\n\n`, `additionalSystemPrompt` = same merge.
 
 Developers can provide a custom `PromptBuilder` to inject additional context (portfolio data, RAG results, etc.) or change the merging strategy.
 
@@ -133,15 +133,16 @@ Developers can provide a custom `PromptBuilder` to inject additional context (po
 ```ts
 interface AgentOverlayOptions {
   readonly provider: LLMProvider
+  readonly theme?: 'light' | 'dark'
   readonly dataAccessor?: DataAccessor
   readonly presets?: readonly AnalysisPreset[]
   readonly promptBuilder?: PromptBuilder
-  readonly ui?: AgentOverlayUIOptions
 }
 ```
 
+- `theme` — `'dark'` (default) or `'light'`. Can be changed at runtime via `agent.setTheme()`. All UI uses CSS custom properties set on `chartEl`, so theme changes cascade instantly.
 - `provider.models` drives the model dropdown (not in `AgentOverlayOptions`).
-- `presets` drives the preset dropdown. When not provided, the preset dropdown is hidden.
+- `presets` — drives the preset dropdown. When not provided, built-in `DEFAULT_PRESETS` are used (Technical, Fundamental, Smart Money, Sentiment). First preset is pre-selected by default.
 - `promptBuilder` overrides the default prompt construction logic. When not provided, `defaultPromptBuilder` is used.
 
 ## 2. Prompt Input
@@ -160,12 +161,14 @@ interface AgentOverlayOptions {
 
 ### Elements
 
-- **Textarea**: Replaces `<input>`. Shift+Enter for newline, Enter to submit.
+- **Textarea**: Replaces `<input>`. Enter for newline, Cmd/Ctrl+Enter to submit. Placeholder: "Ask about this range, or leave empty to run presets".
 - **x button**: Top-right close. Side effects: hides prompt, aborts in-flight request, clears selection (same as Esc).
-- **Model dropdown**: Lists `provider.models`. Single-select. Hidden if `provider.models` not provided.
-- **Preset dropdown**: Multi-select checkboxes from `options.presets`. Bottom has "Run" button for quick execution with default prompts. Hidden if `presets` not provided.
-- **Submit button**: Circular arrow, visually active only when textarea has text.
-- **Progress bar**: Existing sliding bar at bottom during loading.
+- **Model dropdown**: Lists `provider.models`. Single-select. First model pre-selected. Hidden if `provider.models` not provided.
+- **Preset dropdown**: Multi-select checkboxes. First preset pre-selected by default.
+- **Submit button**: Circular arrow, visually active when textarea has text OR presets are selected.
+- **Keyboard hint**: Shows `⌘↵` (Mac) or `Ctrl↵` near submit button.
+- **Progress bar**: Existing sliding bar at bottom during loading. Textarea shows the quick run prompt text (read-only) during loading.
+- **Draggable**: Entire prompt input is draggable. During loading, textarea has `pointer-events: none` so it becomes a drag handle.
 
 When neither `models` nor `presets` is configured, the toolbar shows only the submit button.
 
@@ -173,22 +176,22 @@ When neither `models` nor `presets` is configured, the toolbar shows only the su
 
 - **Open/close**: Click button to toggle. Click outside to close. Esc to close.
 - **Model dropdown**: Closes on selection (single-select).
-- **Preset dropdown**: Stays open after check/uncheck (multi-select). Closes on click outside, Esc, or clicking the "Run" button.
+- **Preset dropdown**: Stays open after check/uncheck (multi-select). Closes on click outside, Esc, or clicking away. Also closes when textarea gains focus.
+- **Mutual exclusion**: Only one dropdown open at a time (managed by `DropdownManager`).
 - **Z-index**: Dropdowns render above the prompt input (z-index: 1001+).
-- **Overflow**: If dropdown would overflow chart container, flip direction (open upward instead of downward).
 
 ### Preset Dropdown Display
 
 Selected presets shown in the dropdown button label:
-- 0 selected: "—"
+- 0 selected: "Presets"
 - 1 selected: "Technical"
 - 2 selected: "Technical, Entry/Exit"
 - 3+ selected: "Technical, Entry/Exit +1"
 
 ### Preset Execution Modes
 
-1. **Custom prompt**: Select presets -> type question -> submit. Orchestrator calls `promptBuilder.build({ userPrompt, selectedPresets, isQuickRun: false })`.
-2. **Quick run**: Select presets -> click "Run" in dropdown. Orchestrator calls `promptBuilder.build({ userPrompt: '', selectedPresets, isQuickRun: true })`. Submits immediately. Textarea content is ignored. "Run" is disabled when no presets are selected.
+1. **Custom prompt**: Type question -> Cmd/Ctrl+Enter. Orchestrator calls `promptBuilder.build({ userPrompt, selectedPresets, isQuickRun: false })`.
+2. **Quick run**: Leave textarea empty -> Cmd/Ctrl+Enter (with presets selected). Orchestrator calls `promptBuilder.build({ userPrompt: '', selectedPresets, isQuickRun: true })`. Preset `quickPrompt` text is shown in textarea during loading as feedback.
 
 ### Error Display
 
@@ -236,6 +239,12 @@ When the provider returns an error:
 ### Section Rendering
 
 Each `ExplanationSection` renders as a labeled block. Sections are separated by a subtle divider. Section labels use distinct colors to differentiate analysis perspectives.
+
+### Sticky Header & Viewport Clamping
+
+- Navigation bar (← N/M → ×) is `position: sticky; top: 0` — stays visible while scrolling content.
+- `max-height: min(400px, calc(100vh - 24px))` prevents overflow beyond viewport.
+- `clampToViewport()` adjusts position after DOM insertion so the popup stays fully visible.
 
 ### History Navigation
 
@@ -368,7 +377,7 @@ const provider = createAnthropicProvider({
 ### New Analysis Flow
 
 1. User selects range -> prompt input shows (previous popup dismissed if any).
-2. User submits (Enter or Quick Run) -> prompt disabled, progress bar shows.
+2. User submits (Cmd/Ctrl+Enter or click submit) -> prompt disabled, progress bar shows. For quick run, preset quickPrompt text fills textarea as feedback.
 3. Provider returns result -> `renderer.clear()`, `renderer.render(result)`, push to history, show explanation popup, hide prompt input.
 4. Error -> progress bar hides, error message shown below toolbar, prompt re-enabled for retry.
 
@@ -397,14 +406,17 @@ const provider = createAnthropicProvider({
 src/core/ui/
   prompt-input.ts        # Major rewrite: textarea, toolbar, dropdowns
   explanation-popup.ts   # Major rewrite: structured sections, history nav
-  calculate-position.ts  # No change
+  calculate-position.ts  # Smart positioning + clampToViewport
   make-draggable.ts      # No change
   history-button.ts      # NEW: persistent chart corner button
   dropdown.ts            # NEW: reusable dropdown component
+  dropdown-manager.ts    # NEW: mutual exclusion for dropdowns
+  theme.ts               # NEW: centralized theme colors + CSS variable management
 
 src/core/
-  agent-overlay.ts       # Updated: history management, new options wiring
+  agent-overlay.ts       # Updated: history management, new options wiring, setTheme
   types.ts               # Updated: new interfaces
+  default-presets.ts     # NEW: built-in DEFAULT_PRESETS (Technical, Fundamental, Smart Money, Sentiment)
   history-store.ts       # NEW: in-memory history management
   prompt-builder.ts      # NEW: PromptBuilder interface + defaultPromptBuilder
 ```
@@ -438,22 +450,22 @@ const agent = createAgentOverlay(chart, series, {
     {
       label: 'Technical',
       systemPrompt: 'Focus on technical analysis: support/resistance, patterns, indicators. Include priceLines and markers.',
-      defaultPrompt: 'Analyze the technical aspects of this range',
+      quickPrompt: 'Analyze the technical aspects of this range',
     },
     {
       label: 'Fundamental',
       systemPrompt: 'Focus on macroeconomic context, news events, and fundamental factors. Only return explanation sections, no priceLines or markers.',
-      defaultPrompt: 'Analyze relevant macro events and fundamentals',
+      quickPrompt: 'Analyze relevant macro events and fundamentals',
     },
     {
       label: 'Smart Money',
       systemPrompt: 'Analyze volume patterns, unusual activity, and institutional behavior. Include markers for anomalies.',
-      defaultPrompt: 'Analyze smart money signals in this range',
+      quickPrompt: 'Analyze smart money signals in this range',
     },
     {
       label: 'Sentiment',
       systemPrompt: 'Assess market sentiment from price action patterns. Only return explanation sections, no priceLines or markers.',
-      defaultPrompt: 'What is the market sentiment in this range?',
+      quickPrompt: 'What is the market sentiment in this range?',
     },
   ],
 })
@@ -488,4 +500,5 @@ const agent = createAgentOverlay(chart, series, {
 | History memory growth | Memory usage on long sessions | Cap at 50 entries, drop oldest with overlay cleanup |
 | Overlay re-rendering on history navigation | Flicker or lag | `clear()` then `render()` in single synchronous sequence |
 | Toolbar too wide on narrow charts | Layout overflow | Dropdown labels truncate with +N pattern |
-| "Run" button accidental click in dropdown | Unintended submission | "Run" disabled when no presets selected; visual separation from checkboxes |
+| LLM wraps JSON in markdown fences | Parse failure | `extractJsonFromText` strips fences, uses brace-counting fallback |
+| Theme switch while UI visible | Stale colors | All components use CSS custom properties set on chartEl; `setTheme()` updates variables once, all children cascade instantly |
