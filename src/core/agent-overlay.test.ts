@@ -129,7 +129,11 @@ describe('createAgentOverlay', () => {
       })
       await vi.waitFor(() => {
         expect(onComplete).toHaveBeenCalledWith(
-          expect.objectContaining({ explanation: 'Support at 100' }),
+          expect.objectContaining({
+            explanation: {
+              sections: [{ label: 'Analysis', content: 'Support at 100' }],
+            },
+          }),
         )
       })
     }

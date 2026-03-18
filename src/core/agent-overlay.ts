@@ -1,12 +1,8 @@
 // src/core/agent-overlay.ts
 
-import type {
-  AgentOverlay,
-  AgentOverlayEventMap,
-  AgentOverlayOptions,
-  AnalysisResult,
-} from './types'
+import type { AgentOverlay, AgentOverlayEventMap, AgentOverlayOptions } from './types'
 import { createEventEmitter } from './event-emitter'
+import { validateResult } from './validate-result'
 import { RangeSelector } from './selection/range-selector'
 import { buildChartContext } from './selection/context-builder'
 import { OverlayRenderer } from './overlay/overlay-renderer'
@@ -29,38 +25,6 @@ interface SeriesLike {
   removePriceLine(line: unknown): void
   data(): readonly Record<string, unknown>[]
   priceToCoordinate(price: number): number | null
-}
-
-function isValidPriceLine(item: unknown): boolean {
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    typeof (item as Record<string, unknown>).price === 'number'
-  )
-}
-
-function isValidMarker(item: unknown): boolean {
-  if (typeof item !== 'object' || item === null) return false
-  const m = item as Record<string, unknown>
-  return m.time != null && typeof m.position === 'string' && typeof m.shape === 'string'
-}
-
-function validateResult(raw: unknown): AnalysisResult {
-  if (typeof raw !== 'object' || raw === null) {
-    throw new Error('Invalid analysis result: expected an object')
-  }
-  const obj = raw as Record<string, unknown>
-
-  const priceLines = Array.isArray(obj.priceLines)
-    ? obj.priceLines.filter(isValidPriceLine)
-    : undefined
-  const markers = Array.isArray(obj.markers) ? obj.markers.filter(isValidMarker) : undefined
-
-  return {
-    ...(typeof obj.explanation === 'string' && { explanation: obj.explanation }),
-    ...(priceLines && priceLines.length > 0 && { priceLines }),
-    ...(markers && markers.length > 0 && { markers }),
-  }
 }
 
 export function createAgentOverlay(
@@ -141,10 +105,9 @@ export function createAgentOverlay(
       if (result.explanation) {
         // Use prompt's last position (might have been dragged)
         const pos = promptInput.getLastPosition()
-        const explanationText =
-          typeof result.explanation === 'string'
-            ? result.explanation
-            : result.explanation.sections.map((s) => `${s.label}: ${s.content}`).join('\n')
+        const explanationText = result.explanation.sections
+          .map((s) => `${s.label}: ${s.content}`)
+          .join('\n')
         explanationPopup.show(explanationText, pos ?? undefined)
       }
 
