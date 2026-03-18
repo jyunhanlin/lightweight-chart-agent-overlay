@@ -161,6 +161,7 @@ unsub()
 | Method | Description |
 |--------|-------------|
 | `setSelectionEnabled(enabled)` | Toggle range selection mode |
+| `setTheme('light' \| 'dark')` | Switch theme dynamically (updates all UI via CSS variables) |
 | `clearOverlays()` | Remove all price lines, markers, and popups |
 | `on(event, handler)` | Subscribe to events (returns unsubscribe fn) |
 | `destroy()` | Full cleanup — removes all listeners and DOM |
