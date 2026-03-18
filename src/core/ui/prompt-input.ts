@@ -1,12 +1,14 @@
 // src/core/ui/prompt-input.ts
 import type { UIPosition } from './calculate-position'
+import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
+import { Dropdown } from './dropdown'
 
 type Theme = 'light' | 'dark'
 
 const THEME_STYLES: Record<
   Theme,
-  { bg: string; border: string; text: string; hint: string; progressBar: string }
+  { bg: string; border: string; text: string; hint: string; progressBar: string; toolbar: string }
 > = {
   dark: {
     bg: '#1e1e2e',
@@ -14,6 +16,7 @@ const THEME_STYLES: Record<
     text: '#e0e0e0',
     hint: '#555',
     progressBar: '#2196f3',
+    toolbar: '#181828',
   },
   light: {
     bg: '#ffffff',
@@ -21,21 +24,42 @@ const THEME_STYLES: Record<
     text: '#1a1a1a',
     hint: '#aaa',
     progressBar: '#1976d2',
+    toolbar: '#f5f5f5',
   },
+}
+
+const SUBMIT_ACTIVE_BG = '#2196f3'
+const SUBMIT_INACTIVE_BG = '#555'
+const ERROR_DISMISS_MS = 5000
+
+export interface PromptInputOptions {
+  readonly models?: readonly ModelOption[]
+  readonly presets?: readonly AnalysisPreset[]
+  readonly theme?: Theme
 }
 
 export class PromptInput {
   private readonly container: HTMLElement
   private readonly theme: Theme
+  private readonly models: readonly ModelOption[]
+  private readonly presets: readonly AnalysisPreset[]
+
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
   private lastPosition: UIPosition | null = null
+  private modelDropdown: Dropdown | null = null
+  private presetDropdown: Dropdown | null = null
+  private errorTimer: ReturnType<typeof setTimeout> | null = null
+
   onSubmit: ((prompt: string) => void) | null = null
   onCancel: (() => void) | null = null
+  onQuickRun: ((presets: readonly AnalysisPreset[]) => void) | null = null
 
-  constructor(container: HTMLElement, theme: Theme = 'dark') {
+  constructor(container: HTMLElement, options?: PromptInputOptions) {
     this.container = container
-    this.theme = theme
+    this.theme = options?.theme ?? 'dark'
+    this.models = options?.models ?? []
+    this.presets = options?.presets ?? []
   }
 
   show(position?: UIPosition): void {
@@ -51,49 +75,125 @@ export class PromptInput {
     wrapper.style.cssText = `
       position: absolute; left: ${posLeft}px; top: ${posTop}px;
       z-index: 1000; background: ${s.bg}; border: 1px solid ${s.border};
-      border-radius: 8px; padding: 6px 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden;
-      cursor: grab;
+      border-radius: 8px; overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      cursor: grab; min-width: 320px;
     `
 
-    // Input row
-    const row = document.createElement('div')
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;'
-
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.placeholder = 'Ask about this range...'
-    input.style.cssText = `
-      background: transparent; border: none; outline: none;
-      color: ${s.text}; font-size: 14px; width: 280px; font-family: inherit;
-      cursor: text;
+    // ── Close button (top-right) ────────────────────────────────────────────
+    const closeBtn = document.createElement('button')
+    closeBtn.setAttribute('data-agent-overlay-close', '')
+    closeBtn.textContent = '×'
+    closeBtn.style.cssText = `
+      position: absolute; top: 6px; right: 8px;
+      background: transparent; border: none; color: ${s.hint};
+      font-size: 18px; cursor: pointer; line-height: 1; padding: 0;
+      font-family: inherit;
     `
-
-    // Enter hint
-    const hint = document.createElement('span')
-    hint.setAttribute('data-agent-overlay-hint', '')
-    hint.textContent = 'Enter \u21b5'
-    hint.style.cssText = `
-      font-size: 11px; color: ${s.hint}; white-space: nowrap;
-      opacity: 0; transition: opacity 0.15s;
-    `
-
-    // Show hint only when input has text
-    input.addEventListener('input', () => {
-      hint.style.opacity = input.value.trim() ? '1' : '0'
+    closeBtn.addEventListener('click', () => {
+      this.hide()
+      this.onCancel?.()
     })
 
-    input.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        const value = input.value.trim()
-        if (value) this.onSubmit?.(value)
-      } else if (e.key === 'Escape') {
-        this.hide()
-        this.onCancel?.()
+    // ── Textarea ───────────────────────────────────────────────────────────
+    const textarea = document.createElement('textarea')
+    textarea.placeholder = 'Ask about this range...'
+    textarea.rows = 3
+    textarea.style.cssText = `
+      display: block; width: 100%; box-sizing: border-box;
+      background: transparent; border: none; outline: none;
+      color: ${s.text}; font-size: 14px; font-family: inherit;
+      resize: none; padding: 10px 32px 8px 12px; cursor: text;
+    `
+
+    // ── Toolbar ────────────────────────────────────────────────────────────
+    const toolbar = document.createElement('div')
+    toolbar.style.cssText = `
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-top: 1px solid ${s.border};
+      background: ${s.toolbar};
+    `
+
+    // Model dropdown
+    if (this.models.length > 0) {
+      const modelWrapper = document.createElement('span')
+      modelWrapper.setAttribute('data-agent-overlay-model-dropdown', '')
+      this.modelDropdown = new Dropdown({
+        items: [...this.models],
+        theme: this.theme,
+        multiSelect: false,
+        placeholder: 'Model',
+      })
+      modelWrapper.appendChild(this.modelDropdown.element)
+      toolbar.appendChild(modelWrapper)
+    }
+
+    // Preset dropdown
+    if (this.presets.length > 0) {
+      const presetWrapper = document.createElement('span')
+      presetWrapper.setAttribute('data-agent-overlay-preset-dropdown', '')
+      this.presetDropdown = new Dropdown({
+        items: this.presets.map((p, i) => ({ id: `preset-${i}`, label: p.label })),
+        theme: this.theme,
+        multiSelect: true,
+        showRun: true,
+        placeholder: 'Preset',
+        onRun: (selected) => {
+          const selectedPresets = selected.map((item) => {
+            const idx = parseInt(item.id.replace('preset-', ''), 10)
+            return this.presets[idx]
+          })
+          this.onQuickRun?.(selectedPresets)
+        },
+      })
+      presetWrapper.appendChild(this.presetDropdown.element)
+      toolbar.appendChild(presetWrapper)
+    }
+
+    // Spacer
+    const spacer = document.createElement('div')
+    spacer.style.cssText = 'flex: 1'
+    toolbar.appendChild(spacer)
+
+    // Submit button
+    const submitBtn = document.createElement('button')
+    submitBtn.setAttribute('data-agent-overlay-submit', '')
+    submitBtn.textContent = '↑'
+    submitBtn.style.cssText = `
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: ${SUBMIT_INACTIVE_BG}; color: #fff;
+      font-size: 14px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      font-family: inherit; flex-shrink: 0;
+    `
+
+    const updateSubmitState = () => {
+      const hasText = textarea.value.trim().length > 0
+      submitBtn.style.background = hasText ? SUBMIT_ACTIVE_BG : SUBMIT_INACTIVE_BG
+    }
+
+    textarea.addEventListener('input', updateSubmitState)
+
+    submitBtn.addEventListener('click', () => {
+      const value = textarea.value.trim()
+      if (value) {
+        this.clearError()
+        this.onSubmit?.(value)
       }
     })
 
-    // Progress bar (hidden until loading)
+    toolbar.appendChild(submitBtn)
+
+    // ── Error div ──────────────────────────────────────────────────────────
+    const errorDiv = document.createElement('div')
+    errorDiv.setAttribute('data-agent-overlay-error', '')
+    errorDiv.style.cssText = `
+      display: none; padding: 4px 12px 6px;
+      font-size: 12px; color: #f44336;
+      background: ${s.bg};
+    `
+
+    // ── Progress bar ────────────────────────────────────────────────────────
     const progressBar = document.createElement('div')
     progressBar.setAttribute('data-agent-overlay-progress', '')
     progressBar.style.cssText = `
@@ -107,7 +207,7 @@ export class PromptInput {
     `
     progressBar.appendChild(progressFill)
 
-    // Inject keyframes
+    // Inject keyframes once
     if (!document.getElementById('agent-overlay-keyframes')) {
       const style = document.createElement('style')
       style.id = 'agent-overlay-keyframes'
@@ -120,18 +220,35 @@ export class PromptInput {
       document.head.appendChild(style)
     }
 
-    row.appendChild(input)
-    row.appendChild(hint)
-    wrapper.appendChild(row)
+    // ── Keyboard handlers ───────────────────────────────────────────────────
+    textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        const value = textarea.value.trim()
+        if (value) {
+          this.clearError()
+          this.onSubmit?.(value)
+        }
+      } else if (e.key === 'Escape') {
+        this.hide()
+        this.onCancel?.()
+      }
+    })
+
+    // ── Assemble ────────────────────────────────────────────────────────────
+    wrapper.appendChild(closeBtn)
+    wrapper.appendChild(textarea)
+    wrapper.appendChild(toolbar)
+    wrapper.appendChild(errorDiv)
     wrapper.appendChild(progressBar)
 
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
 
-    // Make draggable (exclude input from triggering drag)
+    // Make draggable — exclude interactive children
     this.cleanupDrag = makeDraggable(wrapper, {
-      exclude: 'input',
+      exclude: 'textarea, button, [data-dropdown-trigger]',
       onDragEnd: (pos) => {
         this.lastPosition = pos
       },
@@ -141,38 +258,92 @@ export class PromptInput {
       this.lastPosition = position
     }
 
-    input.focus()
+    textarea.focus()
   }
 
   getLastPosition(): UIPosition | null {
     return this.lastPosition
   }
 
-  hide(): void {
-    this.cleanupDrag?.()
-    this.cleanupDrag = null
-    if (this.wrapper) {
-      this.wrapper.remove()
-      this.wrapper = null
+  getSelectedModel(): string | undefined {
+    if (!this.modelDropdown) return undefined
+    const selected = this.modelDropdown.getSelected()
+    return selected.length > 0 ? selected[0].id : undefined
+  }
+
+  getSelectedPresets(): readonly AnalysisPreset[] {
+    if (!this.presetDropdown) return []
+    return this.presetDropdown.getSelected().map((item) => {
+      const idx = parseInt(item.id.replace('preset-', ''), 10)
+      return this.presets[idx]
+    })
+  }
+
+  showError(message: string): void {
+    if (!this.wrapper) return
+    const errorDiv = this.wrapper.querySelector('[data-agent-overlay-error]') as HTMLElement | null
+    if (!errorDiv) return
+
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
     }
+
+    errorDiv.textContent = message
+    errorDiv.style.display = 'block'
+
+    this.errorTimer = setTimeout(() => {
+      errorDiv.style.display = 'none'
+      this.errorTimer = null
+    }, ERROR_DISMISS_MS)
+  }
+
+  private clearError(): void {
+    if (!this.wrapper) return
+    const errorDiv = this.wrapper.querySelector('[data-agent-overlay-error]') as HTMLElement | null
+    if (!errorDiv) return
+
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
+    }
+    errorDiv.style.display = 'none'
   }
 
   setLoading(loading: boolean): void {
     if (!this.wrapper) return
-    const input = this.wrapper.querySelector('input')
-    const hint = this.wrapper.querySelector('[data-agent-overlay-hint]') as HTMLElement | null
+
+    const ta = this.wrapper.querySelector('textarea') as HTMLTextAreaElement | null
+    const toolbar = this.wrapper.querySelector('div[style*="border-top"]') as HTMLElement | null
     const progress = this.wrapper.querySelector(
       '[data-agent-overlay-progress]',
     ) as HTMLElement | null
 
-    if (input) {
-      input.disabled = loading
+    if (ta) {
+      ta.disabled = loading
     }
-    if (hint) {
-      hint.style.visibility = loading ? 'hidden' : 'visible'
+    if (toolbar) {
+      toolbar.style.display = loading ? 'none' : 'flex'
     }
     if (progress) {
       progress.style.display = loading ? 'block' : 'none'
+    }
+  }
+
+  hide(): void {
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
+    }
+    this.cleanupDrag?.()
+    this.cleanupDrag = null
+    this.modelDropdown?.destroy()
+    this.modelDropdown = null
+    this.presetDropdown?.destroy()
+    this.presetDropdown = null
+    if (this.wrapper) {
+      this.wrapper.remove()
+      this.wrapper = null
     }
   }
 
@@ -180,5 +351,6 @@ export class PromptInput {
     this.hide()
     this.onSubmit = null
     this.onCancel = null
+    this.onQuickRun = null
   }
 }
