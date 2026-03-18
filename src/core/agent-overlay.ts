@@ -7,6 +7,7 @@ import type {
   AnalysisPreset,
   ChartContext,
   NormalizedAnalysisResult,
+  TimeValue,
 } from './types'
 import { createEventEmitter } from './event-emitter'
 import { validateResult } from './validate-result'
@@ -44,7 +45,7 @@ interface AnalyzeParams {
   readonly model: string | undefined
   readonly isQuickRun: boolean
   readonly presets: readonly AnalysisPreset[]
-  readonly currentRange: { readonly from: unknown; readonly to: unknown }
+  readonly currentRange: { readonly from: TimeValue; readonly to: TimeValue }
 }
 
 export function createAgentOverlay(
@@ -156,7 +157,7 @@ export function createAgentOverlay(
         presets: params.presets,
         result,
         range: params.currentRange,
-      } as Parameters<typeof explanationPopup.show>[0]['entry']
+      }
 
       historyStore.push(entry)
       historyButton.setCount(historyStore.size())
@@ -239,7 +240,7 @@ export function createAgentOverlay(
       model: selectedModel,
       isQuickRun: false,
       presets: selectedPresets,
-      currentRange: currentRange as { from: unknown; to: unknown },
+      currentRange,
     })
   }
 
@@ -263,7 +264,7 @@ export function createAgentOverlay(
       model: selectedModel,
       isQuickRun: true,
       presets: [...presets],
-      currentRange: currentRange as { from: unknown; to: unknown },
+      currentRange,
     })
   }
 

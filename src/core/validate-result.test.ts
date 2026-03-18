@@ -69,4 +69,37 @@ describe('validateResult', () => {
     expect(() => validateResult(null)).toThrow()
     expect(() => validateResult('string')).toThrow()
   })
+
+  it('should wrap a bare marker into markers array', () => {
+    const result = validateResult({
+      time: 100,
+      position: 'aboveBar',
+      shape: 'circle',
+      text: 'test',
+      color: '#ff0000',
+    })
+    expect(result.markers).toHaveLength(1)
+    expect(result.markers?.[0]).toEqual(
+      expect.objectContaining({ time: 100, position: 'aboveBar', shape: 'circle' }),
+    )
+  })
+
+  it('should wrap a bare priceLine into priceLines array', () => {
+    const result = validateResult({
+      price: 50000,
+      title: 'Support',
+      color: '#00ff00',
+    })
+    expect(result.priceLines).toHaveLength(1)
+    expect(result.priceLines?.[0]).toEqual(expect.objectContaining({ price: 50000 }))
+  })
+
+  it('should not wrap when top-level AnalysisResult keys exist', () => {
+    const result = validateResult({
+      explanation: 'test',
+      markers: [],
+    })
+    // Has explanation key, so no wrapping attempted
+    expect(result.explanation?.sections[0].content).toBe('test')
+  })
 })
