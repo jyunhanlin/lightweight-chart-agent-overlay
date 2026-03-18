@@ -40,43 +40,29 @@ interface SeriesLike {
   priceToCoordinate(price: number): number | null
 }
 
-interface AnalyzeParams {
-  readonly context: ChartContext
-  readonly prompt: string
-  readonly additionalSystemPrompt: string | undefined
-  readonly model: string | undefined
-  readonly isQuickRun: boolean
-  readonly presets: readonly AnalysisPreset[]
-  readonly currentRange: { readonly from: TimeValue; readonly to: TimeValue }
-}
-
 export function createAgentOverlay(
   chart: ChartLike,
   series: SeriesLike,
   options: AgentOverlayOptions,
 ): AgentOverlay {
+  // ── Initialization ─────────────────────────────────────────────────────────
+
   const emitter = createEventEmitter<AgentOverlayEventMap>()
-  const rangeSelector = new RangeSelector(chart as never, series as never)
-  const renderer = new OverlayRenderer(series as never)
   const chartEl = chart.chartElement()
   let theme: 'light' | 'dark' = options.theme ?? 'dark'
   const promptBuilder = options.promptBuilder ?? defaultPromptBuilder
+  const presets = options.presets ?? DEFAULT_PRESETS
 
-  // Ensure container supports absolute positioning for UI overlays
   if (getComputedStyle(chartEl).position === 'static') {
     chartEl.style.position = 'relative'
   }
-
-  // Set theme CSS variables on chart container — cascades to all UI children
   applyThemeVars(chartEl, theme)
 
+  const rangeSelector = new RangeSelector(chart as never, series as never)
+  const renderer = new OverlayRenderer(series as never)
   const historyStore = createHistoryStore()
   const historyButton = new HistoryButton(chartEl)
   historyButton.setCount(0)
-
-  let currentHistoryIndex = -1
-
-  const presets = options.presets ?? DEFAULT_PRESETS
 
   const promptInput = new PromptInput(chartEl, {
     models: options.provider.models,
@@ -84,101 +70,75 @@ export function createAgentOverlay(
   })
   const explanationPopup = new ExplanationPopup(chartEl)
 
-  explanationPopup.onClose = () => {
-    renderer.clear()
-    rangeSelector.clearSelection()
-  }
+  let abortController: AbortController | null = null
+  let currentHistoryIndex = -1
 
-  function showHistoryEntry(index: number): void {
-    const entry = historyStore.get(index)
-    if (!entry) return
+  // ── Core logic ─────────────────────────────────────────────────────────────
 
-    currentHistoryIndex = index
-
-    const position = calculateSmartPosition({
+  function getSmartPosition(range: { from: TimeValue; to: TimeValue }) {
+    return calculateSmartPosition({
       chartEl,
       timeToCoordinate: (time) => chart.timeScale().timeToCoordinate(time),
       priceToCoordinate: (price) => series.priceToCoordinate(price),
-      range: entry.range,
+      range,
       seriesData: series.data(),
     })
-
-    // Show popup first — this internally calls hide() which triggers onClose,
-    // clearing the previous overlay and selection. Then we render the new state.
-    explanationPopup.show({
-      entry,
-      currentIndex: index,
-      totalCount: historyStore.size(),
-      position,
-    })
-
-    renderer.render(entry.result)
-    rangeSelector.setRange(entry.range as { from: never; to: never })
   }
 
-  historyButton.onClick = () => {
-    // If popup is already showing, do nothing
-    if (chartEl.querySelector('[data-agent-overlay-explanation]')) return
-
-    // Hide prompt input if showing
-    promptInput.hide()
-
-    // Show most recent entry
-    const latestIndex = historyStore.size() - 1
-    if (latestIndex < 0) return
-
-    showHistoryEntry(latestIndex)
+  function cancelInFlight(): void {
+    abortController?.abort()
+    abortController = null
   }
 
-  explanationPopup.onNavigate = (direction: -1 | 1) => {
-    const targetIndex = currentHistoryIndex + direction
-    if (targetIndex < 0 || targetIndex >= historyStore.size()) return
-
-    showHistoryEntry(targetIndex)
+  function buildAnalysisContext() {
+    const seriesData = series.data() as never[]
+    const currentRange = rangeSelector.getRange()
+    if (!currentRange) throw new Error('No selection range available')
+    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+    return { context, currentRange }
   }
 
-  let abortController: AbortController | null = null
-
-  async function runAnalysis(params: AnalyzeParams): Promise<void> {
+  async function runAnalysis(
+    context: ChartContext,
+    prompt: string,
+    additionalSystemPrompt: string | undefined,
+    isQuickRun: boolean,
+    analysisPresets: readonly AnalysisPreset[],
+    currentRange: { readonly from: TimeValue; readonly to: TimeValue },
+  ): Promise<void> {
     promptInput.setLoading(true)
     emitter.emit('analyze-start')
     abortController = new AbortController()
 
     try {
-      const rawResult = await options.provider.analyze(
-        params.context,
-        params.prompt,
-        abortController.signal,
-        {
-          model: params.model,
-          additionalSystemPrompt: params.additionalSystemPrompt || undefined,
-        },
-      )
+      const rawResult = await options.provider.analyze(context, prompt, abortController.signal, {
+        model: promptInput.getSelectedModel(),
+        additionalSystemPrompt: additionalSystemPrompt || undefined,
+      })
       const result: NormalizedAnalysisResult = validateResult(rawResult)
 
       const entry = {
-        prompt: params.prompt,
-        isQuickRun: params.isQuickRun,
-        model: params.model,
-        presets: params.presets,
+        prompt,
+        isQuickRun,
+        model: promptInput.getSelectedModel(),
+        presets: analysisPresets,
         result,
-        range: params.currentRange,
+        range: currentRange,
       }
 
       historyStore.push(entry)
       historyButton.setCount(historyStore.size())
       currentHistoryIndex = historyStore.size() - 1
 
-      // Show popup BEFORE rendering overlays — show() internally calls hide()
-      // which triggers onClose → renderer.clear(). Rendering after ensures
+      // Show popup BEFORE rendering overlays — show() calls hide() which
+      // triggers onClose → renderer.clear(). Rendering after ensures
       // the new overlays are not immediately cleared.
       if (result.explanation) {
-        const pos = promptInput.getLastPosition()
         explanationPopup.show({
           entry,
-          currentIndex: historyStore.size() - 1,
+          currentIndex: currentHistoryIndex,
           totalCount: historyStore.size(),
-          position: pos ?? undefined,
+          position: promptInput.getLastPosition() ?? undefined,
         })
       }
 
@@ -197,92 +157,94 @@ export function createAgentOverlay(
     }
   }
 
-  rangeSelector.onDismiss = () => {
-    abortController?.abort()
-    abortController = null
-    promptInput.hide()
-    explanationPopup.hide()
-  }
+  function showHistoryEntry(index: number): void {
+    const entry = historyStore.get(index)
+    if (!entry) return
 
-  rangeSelector.onSelect = (range) => {
-    // Cancel any in-flight request
-    abortController?.abort()
-    abortController = null
+    currentHistoryIndex = index
 
-    // Hide previous UI
-    promptInput.hide()
-    explanationPopup.hide()
-
-    // Calculate smart position based on candle data
-    const position = calculateSmartPosition({
-      chartEl,
-      timeToCoordinate: (time) => chart.timeScale().timeToCoordinate(time),
-      priceToCoordinate: (price) => series.priceToCoordinate(price),
-      range,
-      seriesData: series.data(),
+    explanationPopup.show({
+      entry,
+      currentIndex: index,
+      totalCount: historyStore.size(),
+      position: getSmartPosition(entry.range),
     })
 
-    promptInput.show(position)
+    renderer.render(entry.result)
+    rangeSelector.setRange(entry.range as { from: never; to: never })
   }
 
-  promptInput.onSubmit = async (userPrompt: string) => {
-    const seriesData = series.data() as never[]
-    const currentRange = rangeSelector.getRange()
-    if (!currentRange) throw new Error('No selection range available')
+  // ── Event wiring: Selection ────────────────────────────────────────────────
 
-    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+  rangeSelector.onSelect = (range) => {
+    cancelInFlight()
+    promptInput.hide()
+    explanationPopup.hide()
+    promptInput.show(getSmartPosition(range))
+  }
+
+  rangeSelector.onDismiss = () => {
+    cancelInFlight()
+    promptInput.hide()
+    explanationPopup.hide()
+  }
+
+  // ── Event wiring: Prompt ───────────────────────────────────────────────────
+
+  promptInput.onSubmit = async (userPrompt: string) => {
+    const { context, currentRange } = buildAnalysisContext()
     const selectedPresets = promptInput.getSelectedPresets()
-    const buildResult = promptBuilder.build({
+    const { prompt, additionalSystemPrompt } = promptBuilder.build({
       userPrompt,
       selectedPresets,
       isQuickRun: false,
     })
-    const selectedModel = promptInput.getSelectedModel()
-
-    await runAnalysis({
-      context,
-      prompt: buildResult.prompt,
-      additionalSystemPrompt: buildResult.additionalSystemPrompt,
-      model: selectedModel,
-      isQuickRun: false,
-      presets: selectedPresets,
-      currentRange,
-    })
+    await runAnalysis(context, prompt, additionalSystemPrompt, false, selectedPresets, currentRange)
   }
 
   promptInput.onQuickRun = async (runPresets: readonly AnalysisPreset[]) => {
-    const seriesData = series.data() as never[]
-    const currentRange = rangeSelector.getRange()
-    if (!currentRange) throw new Error('No selection range available')
-
-    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
-    const buildResult = promptBuilder.build({
+    const { context, currentRange } = buildAnalysisContext()
+    const { prompt, additionalSystemPrompt } = promptBuilder.build({
       userPrompt: '',
       selectedPresets: runPresets,
       isQuickRun: true,
     })
-    const selectedModel = promptInput.getSelectedModel()
-
-    await runAnalysis({
-      context,
-      prompt: buildResult.prompt,
-      additionalSystemPrompt: buildResult.additionalSystemPrompt,
-      model: selectedModel,
-      isQuickRun: true,
-      presets: [...runPresets],
-      currentRange,
-    })
+    await runAnalysis(context, prompt, additionalSystemPrompt, true, [...runPresets], currentRange)
   }
 
   promptInput.onCancel = () => {
-    abortController?.abort()
-    abortController = null
+    cancelInFlight()
     rangeSelector.clearSelection()
   }
 
+  // ── Event wiring: History ──────────────────────────────────────────────────
+
+  explanationPopup.onClose = () => {
+    renderer.clear()
+    rangeSelector.clearSelection()
+  }
+
+  explanationPopup.onNavigate = (direction: -1 | 1) => {
+    const targetIndex = currentHistoryIndex + direction
+    if (targetIndex >= 0 && targetIndex < historyStore.size()) {
+      showHistoryEntry(targetIndex)
+    }
+  }
+
+  historyButton.onClick = () => {
+    if (chartEl.querySelector('[data-agent-overlay-explanation]')) return
+    promptInput.hide()
+    const latestIndex = historyStore.size() - 1
+    if (latestIndex >= 0) {
+      showHistoryEntry(latestIndex)
+    }
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
+
   return {
     destroy() {
-      abortController?.abort()
+      cancelInFlight()
       rangeSelector.destroy()
       promptInput.destroy()
       explanationPopup.destroy()
