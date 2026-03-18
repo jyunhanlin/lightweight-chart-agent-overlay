@@ -38,17 +38,17 @@ IMPORTANT: Always wrap your response in the top-level { "explanation", "priceLin
 
 interface AnthropicProviderOptions {
   readonly apiKey: string
-  readonly model?: string
+  readonly defaultModel?: string
   readonly systemPrompt?: string
-  readonly models?: readonly ModelOption[]
+  readonly availableModels?: readonly ModelOption[]
 }
 
 export function createAnthropicProvider(options: AnthropicProviderOptions): LLMProvider {
-  const model = options.model ?? DEFAULT_MODEL
+  const model = options.defaultModel ?? DEFAULT_MODEL
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
 
   return {
-    models: options.models,
+    availableModels: options.availableModels,
     async analyze(
       context: ChartContext,
       prompt: string,

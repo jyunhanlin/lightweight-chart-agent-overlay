@@ -45,8 +45,8 @@ import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/provide
 
 const provider = createAnthropicProvider({
   apiKey: 'sk-ant-...',
-  model: 'claude-haiku-4-5',        // default
-  models: [                          // optional: model selector in UI
+  defaultModel: 'claude-haiku-4-5',   // default
+  availableModels: [                  // optional: model selector in UI
     { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
   ],
@@ -60,7 +60,7 @@ import { createOpenAIProvider } from 'lightweight-chart-agent-overlay/providers/
 
 const provider = createOpenAIProvider({
   apiKey: 'sk-...',
-  model: 'gpt-4o-mini',             // default
+  defaultModel: 'gpt-4o-mini',       // default
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
 })
 ```
@@ -73,7 +73,7 @@ Implement the `LLMProvider` interface:
 import type { LLMProvider, ChartContext, AnalysisResult } from 'lightweight-chart-agent-overlay'
 
 const myProvider: LLMProvider = {
-  models: [{ id: 'my-model', label: 'My Model' }], // optional
+  availableModels: [{ id: 'my-model', label: 'My Model' }], // optional
   async analyze(context, prompt, signal?, options?) {
     // context.data: OHLCData[] — the selected candles
     // context.timeRange: { from, to }

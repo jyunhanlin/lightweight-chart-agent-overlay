@@ -65,7 +65,7 @@ export function createAgentOverlay(
   historyButton.setCount(0)
 
   const promptInput = new PromptInput(chartEl, {
-    models: options.provider.models,
+    availableModels: options.provider.availableModels,
     presets,
   })
   const explanationPopup = new ExplanationPopup(chartEl)

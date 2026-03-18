@@ -20,17 +20,17 @@ describe('createAnthropicProvider', () => {
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
-  it('should expose models when provided', () => {
+  it('should expose availableModels when provided', () => {
     const provider = createAnthropicProvider({
       apiKey: 'test',
-      models: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }],
+      availableModels: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }],
     })
-    expect(provider.models).toEqual([{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }])
+    expect(provider.availableModels).toEqual([{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }])
   })
 
-  it('should have undefined models when not provided', () => {
+  it('should have undefined availableModels when not provided', () => {
     const provider = createAnthropicProvider({ apiKey: 'test' })
-    expect(provider.models).toBeUndefined()
+    expect(provider.availableModels).toBeUndefined()
   })
 
   it('calls fetch with correct Anthropic API shape', async () => {

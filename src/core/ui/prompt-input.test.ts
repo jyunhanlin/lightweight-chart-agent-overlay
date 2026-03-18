@@ -141,7 +141,7 @@ describe('PromptInput', () => {
   // ── Model dropdown ─────────────────────────────────────────────────────────
 
   it('shows model dropdown when models are provided', () => {
-    const prompt = new PromptInput(container, { models: MODELS })
+    const prompt = new PromptInput(container, { availableModels: MODELS })
     prompt.show()
 
     // Model dropdown trigger button should be present
@@ -173,7 +173,7 @@ describe('PromptInput', () => {
   })
 
   it('hides preset dropdown when no presets provided', () => {
-    const prompt = new PromptInput(container, { models: MODELS })
+    const prompt = new PromptInput(container, { availableModels: MODELS })
     prompt.show()
 
     const presetWrapper = container.querySelector('[data-agent-overlay-preset-dropdown]')
@@ -225,7 +225,7 @@ describe('PromptInput', () => {
   // ── getSelectedModel ───────────────────────────────────────────────────────
 
   it('getSelectedModel() returns selected model id', () => {
-    const prompt = new PromptInput(container, { models: MODELS })
+    const prompt = new PromptInput(container, { availableModels: MODELS })
     prompt.show()
 
     // Click the dropdown trigger to open it

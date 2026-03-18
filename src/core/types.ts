@@ -79,7 +79,7 @@ export interface AnalyzeOptions {
 // --- Provider ---
 
 export interface LLMProvider {
-  readonly models?: readonly ModelOption[]
+  readonly availableModels?: readonly ModelOption[]
   analyze(
     context: ChartContext,
     prompt: string,

@@ -111,7 +111,7 @@ const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
 const provider = apiKey
   ? createAnthropicProvider({
       apiKey,
-      models: [
+      availableModels: [
         { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
         { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
       ],

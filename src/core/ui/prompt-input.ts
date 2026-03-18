@@ -11,13 +11,13 @@ const SUBMIT_INACTIVE_BG = '#555'
 const ERROR_DISMISS_MS = 5000
 
 export interface PromptInputOptions {
-  readonly models?: readonly ModelOption[]
+  readonly availableModels?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
 }
 
 export class PromptInput {
   private readonly container: HTMLElement
-  private readonly models: readonly ModelOption[]
+  private readonly availableModels: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
 
   private wrapper: HTMLElement | null = null
@@ -34,7 +34,7 @@ export class PromptInput {
 
   constructor(container: HTMLElement, options?: PromptInputOptions) {
     this.container = container
-    this.models = options?.models ?? []
+    this.availableModels = options?.availableModels ?? []
     this.presets = options?.presets ?? []
   }
 
@@ -98,11 +98,11 @@ export class PromptInput {
     })
 
     // Model dropdown
-    if (this.models.length > 0) {
+    if (this.availableModels.length > 0) {
       const modelWrapper = document.createElement('span')
       modelWrapper.setAttribute('data-agent-overlay-model-dropdown', '')
       this.modelDropdown = new Dropdown({
-        items: [...this.models],
+        items: [...this.availableModels],
         multiSelect: false,
         placeholder: 'Model',
         manager: this.dropdownManager,
@@ -112,8 +112,8 @@ export class PromptInput {
       toolbar.appendChild(modelWrapper)
 
       // Pre-select first model
-      if (this.models.length > 0) {
-        this.modelDropdown.setSelected([this.models[0].id])
+      if (this.availableModels.length > 0) {
+        this.modelDropdown.setSelected([this.availableModels[0].id])
       }
     }
 

@@ -17,17 +17,17 @@ describe('createOpenAIProvider', () => {
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
-  it('should expose models when provided', () => {
+  it('should expose availableModels when provided', () => {
     const provider = createOpenAIProvider({
       apiKey: 'test',
-      models: [{ id: 'gpt-4o', label: 'GPT-4o' }],
+      availableModels: [{ id: 'gpt-4o', label: 'GPT-4o' }],
     })
-    expect(provider.models).toEqual([{ id: 'gpt-4o', label: 'GPT-4o' }])
+    expect(provider.availableModels).toEqual([{ id: 'gpt-4o', label: 'GPT-4o' }])
   })
 
-  it('should have undefined models when not provided', () => {
+  it('should have undefined availableModels when not provided', () => {
     const provider = createOpenAIProvider({ apiKey: 'test' })
-    expect(provider.models).toBeUndefined()
+    expect(provider.availableModels).toBeUndefined()
   })
 
   it('calls OpenAI chat completions API', async () => {
