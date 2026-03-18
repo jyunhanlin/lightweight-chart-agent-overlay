@@ -247,7 +247,7 @@ export function createAgentOverlay(
     })
   }
 
-  promptInput.onQuickRun = async (presets: readonly AnalysisPreset[]) => {
+  promptInput.onQuickRun = async (runPresets: readonly AnalysisPreset[]) => {
     const seriesData = series.data() as never[]
     const currentRange = rangeSelector.getRange()
     if (!currentRange) throw new Error('No selection range available')
@@ -255,7 +255,7 @@ export function createAgentOverlay(
     const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
     const buildResult = promptBuilder.build({
       userPrompt: '',
-      selectedPresets: presets,
+      selectedPresets: runPresets,
       isQuickRun: true,
     })
     const selectedModel = promptInput.getSelectedModel()
@@ -266,7 +266,7 @@ export function createAgentOverlay(
       additionalSystemPrompt: buildResult.additionalSystemPrompt,
       model: selectedModel,
       isQuickRun: true,
-      presets: [...presets],
+      presets: [...runPresets],
       currentRange,
     })
   }

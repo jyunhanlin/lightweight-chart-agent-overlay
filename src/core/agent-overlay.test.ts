@@ -66,7 +66,9 @@ function submitPrompt(el: HTMLElement, text: string) {
   const textarea = getTextarea(el)
   if (!textarea) return
   textarea.value = text
-  textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
+  textarea.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }),
+  )
 }
 
 /** Helper: enable selection, drag, and submit a prompt in one call */
@@ -386,7 +388,9 @@ describe('createAgentOverlay', () => {
 
       // First preset is pre-selected by default — just press Cmd+Enter
       const textarea = el.querySelector('textarea') as HTMLTextAreaElement
-      textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
+      textarea.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }),
+      )
 
       await vi.waitFor(() => {
         expect(provider.analyze).toHaveBeenCalled()

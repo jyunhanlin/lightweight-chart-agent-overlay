@@ -1,6 +1,11 @@
 // src/core/ui/explanation-popup.ts
 import type { HistoryEntry } from '../types'
-import { ESTIMATED_UI_HEIGHT, UI_PADDING, clampToViewport, type UIPosition } from './calculate-position'
+import {
+  ESTIMATED_UI_HEIGHT,
+  UI_PADDING,
+  clampToViewport,
+  type UIPosition,
+} from './calculate-position'
 import { makeDraggable } from './make-draggable'
 
 type Theme = 'light' | 'dark'
