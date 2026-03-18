@@ -35,11 +35,34 @@ function normalizeExplanation(raw: unknown): NormalizedExplanation | undefined {
   return validSections.length > 0 ? { sections: validSections } : undefined
 }
 
+/**
+ * If the LLM returned a bare marker or priceLine instead of the full
+ * AnalysisResult wrapper, try to detect and wrap it.
+ */
+function tryWrapBareResult(obj: Record<string, unknown>): Record<string, unknown> {
+  // Has at least one top-level AnalysisResult key → already wrapped
+  if (obj.explanation !== undefined || obj.priceLines !== undefined || obj.markers !== undefined) {
+    return obj
+  }
+
+  // Looks like a bare marker
+  if (isValidMarker(obj)) {
+    return { markers: [obj] }
+  }
+
+  // Looks like a bare priceLine
+  if (isValidPriceLine(obj)) {
+    return { priceLines: [obj] }
+  }
+
+  return obj
+}
+
 export function validateResult(raw: unknown): NormalizedAnalysisResult {
   if (typeof raw !== 'object' || raw === null) {
     throw new Error('Invalid analysis result: expected an object')
   }
-  const obj = raw as Record<string, unknown>
+  const obj = tryWrapBareResult(raw as Record<string, unknown>)
 
   const explanation = normalizeExplanation(obj.explanation)
   const priceLines = Array.isArray(obj.priceLines)
