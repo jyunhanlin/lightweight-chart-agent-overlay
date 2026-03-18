@@ -105,10 +105,15 @@ export function createAgentOverlay(
       if (result.explanation) {
         // Use prompt's last position (might have been dragged)
         const pos = promptInput.getLastPosition()
-        const explanationText = result.explanation.sections
-          .map((s) => `${s.label}: ${s.content}`)
-          .join('\n')
-        explanationPopup.show(explanationText, pos ?? undefined)
+        const entry = {
+          prompt,
+          isQuickRun: false,
+          model: undefined,
+          presets: [],
+          result,
+          range: currentRange as { from: unknown; to: unknown },
+        } as Parameters<typeof explanationPopup.show>[0]['entry']
+        explanationPopup.show({ entry, currentIndex: 0, totalCount: 1, position: pos ?? undefined })
       }
 
       promptInput.hide()
