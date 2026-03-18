@@ -7,27 +7,27 @@ const MOCK_CONTEXT: ChartContext = {
   data: [{ time: 1000, open: 100, high: 110, low: 90, close: 105 }],
 }
 
+const MODELS = [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }]
+
 describe('createOpenAIProvider', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
   it('returns an object with analyze method', () => {
-    const provider = createOpenAIProvider({ apiKey: 'test-key' })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
-  it('should expose availableModels when provided', () => {
-    const provider = createOpenAIProvider({
-      apiKey: 'test',
-      availableModels: [{ id: 'gpt-4o', label: 'GPT-4o' }],
-    })
-    expect(provider.availableModels).toEqual([{ id: 'gpt-4o', label: 'GPT-4o' }])
+  it('should expose availableModels', () => {
+    const provider = createOpenAIProvider({ apiKey: 'test', availableModels: MODELS })
+    expect(provider.availableModels).toEqual(MODELS)
   })
 
-  it('should have undefined availableModels when not provided', () => {
-    const provider = createOpenAIProvider({ apiKey: 'test' })
-    expect(provider.availableModels).toBeUndefined()
+  it('throws when availableModels is empty', () => {
+    expect(() => createOpenAIProvider({ apiKey: 'test', availableModels: [] })).toThrow(
+      'availableModels must contain at least one model',
+    )
   })
 
   it('calls OpenAI chat completions API', async () => {
@@ -41,7 +41,7 @@ describe('createOpenAIProvider', () => {
         }),
     })
 
-    const provider = createOpenAIProvider({ apiKey: 'test-key' })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
     const result = await provider.analyze(MOCK_CONTEXT, 'Analyze trend')
 
     expect(fetch).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe('createOpenAIProvider', () => {
     expect(result.explanation).toBe('Bearish trend')
   })
 
-  it('should use options.model when provided', async () => {
+  it('should use analyzeOptions.model when provided', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -65,7 +65,7 @@ describe('createOpenAIProvider', () => {
           choices: [{ message: { content: '{"explanation":"test"}' } }],
         }),
     })
-    const provider = createOpenAIProvider({ apiKey: 'test' })
+    const provider = createOpenAIProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { model: 'gpt-4o' })
     const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
     expect(body.model).toBe('gpt-4o')
@@ -79,7 +79,7 @@ describe('createOpenAIProvider', () => {
           choices: [{ message: { content: '{"explanation":"test"}' } }],
         }),
     })
-    const provider = createOpenAIProvider({ apiKey: 'test' })
+    const provider = createOpenAIProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, {
       additionalSystemPrompt: 'Extra instructions',
     })
@@ -96,7 +96,7 @@ describe('createOpenAIProvider', () => {
       text: () => Promise.resolve('Invalid API key'),
     })
 
-    const provider = createOpenAIProvider({ apiKey: 'bad-key' })
+    const provider = createOpenAIProvider({ apiKey: 'bad-key', availableModels: MODELS })
 
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('OpenAI API error')
   })
@@ -111,7 +111,7 @@ describe('createOpenAIProvider', () => {
     })
 
     const controller = new AbortController()
-    const provider = createOpenAIProvider({ apiKey: 'test-key' })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', controller.signal)
 
     expect(fetch).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe('createOpenAIProvider', () => {
         }),
     })
 
-    const provider = createOpenAIProvider({ apiKey: 'test-key' })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
 
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('Failed to parse')
   })

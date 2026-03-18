@@ -10,27 +10,27 @@ const MOCK_CONTEXT: ChartContext = {
   ],
 }
 
+const MODELS = [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }]
+
 describe('createAnthropicProvider', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
   it('returns an object with analyze method', () => {
-    const provider = createAnthropicProvider({ apiKey: 'test-key' })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
     expect(provider.analyze).toBeInstanceOf(Function)
   })
 
-  it('should expose availableModels when provided', () => {
-    const provider = createAnthropicProvider({
-      apiKey: 'test',
-      availableModels: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }],
-    })
-    expect(provider.availableModels).toEqual([{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }])
+  it('should expose availableModels', () => {
+    const provider = createAnthropicProvider({ apiKey: 'test', availableModels: MODELS })
+    expect(provider.availableModels).toEqual(MODELS)
   })
 
-  it('should have undefined availableModels when not provided', () => {
-    const provider = createAnthropicProvider({ apiKey: 'test' })
-    expect(provider.availableModels).toBeUndefined()
+  it('throws when availableModels is empty', () => {
+    expect(() => createAnthropicProvider({ apiKey: 'test', availableModels: [] })).toThrow(
+      'availableModels must contain at least one model',
+    )
   })
 
   it('calls fetch with correct Anthropic API shape', async () => {
@@ -47,7 +47,7 @@ describe('createAnthropicProvider', () => {
         }),
     })
 
-    const provider = createAnthropicProvider({ apiKey: 'test-key' })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
     const result = await provider.analyze(MOCK_CONTEXT, 'Find support levels')
 
     expect(fetch).toHaveBeenCalledWith(
@@ -66,12 +66,12 @@ describe('createAnthropicProvider', () => {
     expect(result.priceLines![0].price).toBe(100)
   })
 
-  it('should use options.model when provided', async () => {
+  it('should use analyzeOptions.model when provided', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
     })
-    const provider = createAnthropicProvider({ apiKey: 'test' })
+    const provider = createAnthropicProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { model: 'claude-sonnet-4-6' })
     const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
     expect(body.model).toBe('claude-sonnet-4-6')
@@ -82,7 +82,7 @@ describe('createAnthropicProvider', () => {
       ok: true,
       json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
     })
-    const provider = createAnthropicProvider({ apiKey: 'test' })
+    const provider = createAnthropicProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, {
       additionalSystemPrompt: 'Extra instructions',
     })
@@ -98,7 +98,7 @@ describe('createAnthropicProvider', () => {
       text: () => Promise.resolve('Invalid API key'),
     })
 
-    const provider = createAnthropicProvider({ apiKey: 'bad-key' })
+    const provider = createAnthropicProvider({ apiKey: 'bad-key', availableModels: MODELS })
 
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('Anthropic API error')
   })
@@ -113,7 +113,7 @@ describe('createAnthropicProvider', () => {
     })
 
     const controller = new AbortController()
-    const provider = createAnthropicProvider({ apiKey: 'test-key' })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', controller.signal)
 
     expect(fetch).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe('createAnthropicProvider', () => {
         }),
     })
 
-    const provider = createAnthropicProvider({ apiKey: 'test-key' })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
 
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('Failed to parse')
   })

@@ -9,7 +9,6 @@ import type {
 } from '../core/types'
 import { extractJsonFromText } from './parse-response'
 
-const DEFAULT_MODEL = 'gpt-4o-mini'
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
 const DEFAULT_SYSTEM_PROMPT = `You are a financial chart analyst. The user has selected a range of candlestick data and asked a question.
@@ -40,11 +39,14 @@ interface OpenAIProviderOptions {
   readonly apiKey: string
   readonly systemPrompt?: string
   readonly baseURL?: string
-  readonly availableModels?: readonly ModelOption[]
+  readonly availableModels: readonly ModelOption[]
 }
 
 export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvider {
-  const model = options.availableModels?.[0]?.id ?? DEFAULT_MODEL
+  if (options.availableModels.length === 0) {
+    throw new Error('availableModels must contain at least one model')
+  }
+  const model = options.availableModels[0].id
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
   const baseURL = options.baseURL ?? API_URL
 
