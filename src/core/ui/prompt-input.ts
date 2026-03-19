@@ -79,7 +79,14 @@ export class PromptInput {
       background: transparent; border: none; outline: none;
       color: var(--ao-text); font-size: 14px; font-family: inherit;
       resize: none; padding: 10px 32px 8px 12px; cursor: text;
+      overflow: hidden;
     `
+
+    const autoGrow = () => {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+    textarea.addEventListener('input', autoGrow)
 
     // ── Toolbar ────────────────────────────────────────────────────────────
     const toolbar = document.createElement('div')
