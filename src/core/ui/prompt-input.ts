@@ -78,7 +78,8 @@ export class PromptInput {
       display: block; width: 100%; box-sizing: border-box;
       background: transparent; border: none; outline: none;
       color: var(--ao-text); font-size: 14px; font-family: inherit;
-      resize: none; padding: 10px 32px 8px 12px; cursor: text;
+      line-height: 20px;
+      resize: none; padding: 10px 32px 10px 12px; cursor: text;
       overflow: hidden;
     `
 
