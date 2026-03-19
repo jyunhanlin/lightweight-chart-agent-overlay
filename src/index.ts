@@ -16,6 +16,7 @@ export type {
   ExplanationSection,
   ModelOption,
   AnalyzeOptions,
+  ProviderHeaders,
   AnalysisPreset,
   PromptBuildParams,
   PromptBuildResult,

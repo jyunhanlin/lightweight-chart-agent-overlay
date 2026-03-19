@@ -74,12 +74,20 @@ export interface ModelOption {
 export interface AnalyzeOptions {
   readonly model?: string
   readonly additionalSystemPrompt?: string
+  readonly apiKey?: string
+  readonly headers?: Readonly<Record<string, string>>
 }
 
 // --- Provider ---
 
+export type ProviderHeaders =
+  | Readonly<Record<string, string>>
+  | (() => Record<string, string> | Promise<Record<string, string>>)
+
 export interface LLMProvider {
   readonly availableModels?: readonly ModelOption[]
+  readonly requiresApiKey?: boolean
+  readonly headers?: ProviderHeaders
   analyze(
     context: ChartContext,
     prompt: string,
@@ -136,6 +144,7 @@ export interface AgentOverlayOptions {
   readonly dataAccessor?: DataAccessor
   readonly presets?: readonly AnalysisPreset[]
   readonly promptBuilder?: PromptBuilder
+  readonly apiKeyStorageKey?: string
 }
 
 // --- Event Map ---
