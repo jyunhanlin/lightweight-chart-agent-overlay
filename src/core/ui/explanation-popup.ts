@@ -33,12 +33,11 @@ function buildNavBar(
   nav.style.cssText = `
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 8px; border-bottom: 1px solid var(--ao-divider); gap: 4px;
-    position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
-    border-radius: 6px 6px 0 0;
   `
 
   const navLeft = document.createElement('div')
-  navLeft.style.cssText = 'display: flex; align-items: center; gap: 4px;'
+  const hideNav = totalCount <= 1
+  navLeft.style.cssText = `display: flex; align-items: center; gap: 4px;${hideNav ? ' visibility: hidden;' : ''}`
 
   const prevBtn = document.createElement('button')
   prevBtn.setAttribute('data-agent-overlay-nav-prev', '')
@@ -81,28 +80,6 @@ function buildNavBar(
   nav.appendChild(closeBtn)
 
   return nav
-}
-
-function buildCloseButtonOnly(onClose: () => void): HTMLElement {
-  const row = document.createElement('div')
-  row.style.cssText = `
-    display: flex; justify-content: flex-end;
-    padding: 4px 8px 0;
-    position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
-    border-radius: 6px 6px 0 0;
-  `
-
-  const closeBtn = document.createElement('button')
-  closeBtn.setAttribute('data-agent-overlay-close', '')
-  closeBtn.textContent = '\u00d7'
-  closeBtn.style.cssText = `
-    background: none; border: none; color: var(--ao-close); cursor: pointer;
-    font-size: 16px; padding: 0 4px;
-  `
-  closeBtn.addEventListener('click', onClose)
-
-  row.appendChild(closeBtn)
-  return row
 }
 
 function buildPromptBubble(prompt: string): HTMLElement {
@@ -253,29 +230,28 @@ export class ExplanationPopup {
     const handlePrev = () => this.onNavigate?.(-1)
     const handleNext = () => this.onNavigate?.(1)
 
-    // Nav bar (only when totalCount > 1)
-    if (totalCount > 1) {
-      wrapper.appendChild(
-        buildNavBar(currentIndex, totalCount, handlePrev, handleNext, handleClose),
-      )
-    } else {
-      wrapper.appendChild(buildCloseButtonOnly(handleClose))
-    }
+    // ── Sticky header: nav + prompt context + tags ──────────────────────
+    const stickyHeader = document.createElement('div')
+    stickyHeader.style.cssText = `
+      position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
+      border-radius: 6px 6px 0 0;
+    `
 
-    // Context area: prompt bubble or quick-run indicator
+    stickyHeader.appendChild(
+      buildNavBar(currentIndex, totalCount, handlePrev, handleNext, handleClose),
+    )
+
     if (entry.isQuickRun) {
-      wrapper.appendChild(buildQuickIndicator(entry))
+      stickyHeader.appendChild(buildQuickIndicator(entry))
     } else {
-      wrapper.appendChild(buildPromptBubble(entry.prompt))
-      wrapper.appendChild(buildTagsRow(entry))
+      stickyHeader.appendChild(buildPromptBubble(entry.prompt))
     }
 
-    // For quick-run we still show tags
-    if (entry.isQuickRun) {
-      wrapper.appendChild(buildTagsRow(entry))
-    }
+    stickyHeader.appendChild(buildTagsRow(entry))
 
-    // Sections
+    wrapper.appendChild(stickyHeader)
+
+    // ── Scrollable content ────────────────────────────────────────────
     wrapper.appendChild(buildSections(entry))
 
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
