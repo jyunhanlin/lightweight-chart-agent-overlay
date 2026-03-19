@@ -44,8 +44,17 @@ Call `setSelectionEnabled(true)` to enter selection mode, drag a range on the ch
 ```ts
 import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/providers/anthropic'
 
+// Dev mode — hardcoded key (local development only)
 const provider = createAnthropicProvider({
   apiKey: 'sk-ant-...',
+  availableModels: [
+    { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  ],
+})
+
+// BYOK mode — end-users enter their own key via Settings UI
+const provider = createAnthropicProvider({
   availableModels: [
     { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
@@ -58,10 +67,17 @@ const provider = createAnthropicProvider({
 ```ts
 import { createOpenAIProvider } from 'lightweight-chart-agent-overlay/providers/openai'
 
+// Dev mode — hardcoded key (local development only)
 const provider = createOpenAIProvider({
   apiKey: 'sk-...',
   availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
+})
+
+// BYOK mode — end-users enter their own key via Settings UI
+const provider = createOpenAIProvider({
+  availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
+  baseURL: 'https://api.openai.com/v1/chat/completions',
 })
 ```
 
@@ -84,11 +100,53 @@ const myProvider: LLMProvider = {
 }
 ```
 
+#### Custom Provider with Auth Headers
+
+```ts
+const myProvider: LLMProvider = {
+  headers: async () => ({
+    Authorization: `Bearer ${await getSessionToken()}`,
+  }),
+  async analyze(context, prompt, signal?, options?) {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      body: JSON.stringify({ context, prompt }),
+      signal,
+    })
+    return res.json()
+  },
+}
+```
+
+The overlay resolves `headers` (static or async) before each `analyze()` call and passes the result via `options.headers`.
+
+#### Custom Provider with BYOK
+
+```ts
+const byokProvider: LLMProvider = {
+  requiresApiKey: true,
+  async analyze(context, prompt, signal?, options?) {
+    const res = await fetch('https://my-openai-compatible-api.com/v1/chat', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${options?.apiKey}` },
+      body: JSON.stringify({ context, prompt }),
+      signal,
+    })
+    return res.json()
+  },
+}
+```
+
+Setting `requiresApiKey: true` shows a settings gear icon in the prompt input toolbar where users can enter and manage their own API key.
+
 ## Security
 
-The built-in Anthropic and OpenAI providers pass API keys directly in browser-side `fetch` calls. This is fine for **local development and prototyping**, but in production your API key would be visible to anyone inspecting network requests.
+**BYOK (Bring Your Own Key)** — Omit `apiKey` when creating a built-in provider (or set `requiresApiKey: true` on a custom provider) and a settings gear icon appears in the toolbar. Each end-user enters their own API key, which is stored in `localStorage`.
 
-For production, use a custom provider that routes through your own backend:
+This is the recommended approach for shared apps — the app developer never exposes their own key. Note: `localStorage` is accessible to any JavaScript on the same origin, so an XSS vulnerability could leak stored keys. Use [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) headers in production.
+
+**Backend proxy** — For maximum security, use a custom provider that routes through your own backend:
 
 ```ts
 const provider: LLMProvider = {
@@ -130,6 +188,7 @@ createAgentOverlay(chart, series, {
   presets: DEFAULT_PRESETS,          // optional: override built-in presets
   promptBuilder: defaultPromptBuilder, // optional: custom prompt construction
   dataAccessor: (range) => data,     // optional: custom data source
+  apiKeyStorageKey: 'my-app-key',   // optional: localStorage key for BYOK (default: 'agent-overlay-api-key')
 })
 ```
 
