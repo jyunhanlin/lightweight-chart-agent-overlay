@@ -60,9 +60,9 @@ export class PromptInput {
     closeBtn.setAttribute('data-agent-overlay-close', '')
     closeBtn.textContent = '×'
     closeBtn.style.cssText = `
-      position: absolute; top: 6px; right: 8px;
+      position: absolute; top: 10px; right: 8px;
       background: transparent; border: none; color: var(--ao-hint);
-      font-size: 18px; cursor: pointer; line-height: 1; padding: 0;
+      font-size: 18px; cursor: pointer; line-height: 20px; padding: 0;
       font-family: inherit;
     `
     closeBtn.addEventListener('click', () => {

@@ -72,7 +72,7 @@ function buildNavBar(
   closeBtn.textContent = '\u00d7'
   closeBtn.style.cssText = `
     background: none; border: none; color: var(--ao-close); cursor: pointer;
-    font-size: 16px; padding: 0 4px; margin-left: auto;
+    font-size: 16px; line-height: 1; padding: 0 4px; margin-left: auto;
   `
   closeBtn.addEventListener('click', onClose)
 
