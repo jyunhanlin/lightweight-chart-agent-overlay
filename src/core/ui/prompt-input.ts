@@ -84,11 +84,14 @@ export class PromptInput {
     `
 
     const minHeight = 40
+    const maxHeight = 140
     textarea.style.height = `${minHeight}px`
 
     const autoGrow = () => {
       textarea.style.height = `${minHeight}px`
-      textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`
+      const targetHeight = Math.max(textarea.scrollHeight, minHeight)
+      textarea.style.height = `${Math.min(targetHeight, maxHeight)}px`
+      textarea.style.overflow = targetHeight > maxHeight ? 'auto' : 'hidden'
     }
     textarea.addEventListener('input', autoGrow)
 
