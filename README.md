@@ -89,6 +89,29 @@ const myProvider: LLMProvider = {
 }
 ```
 
+### Security: API Keys in Production
+
+The built-in Anthropic and OpenAI providers pass API keys directly in browser-side `fetch` calls. This is fine for **local development and prototyping**, but in production your API key would be visible to anyone inspecting network requests.
+
+For production, use a custom provider that routes through your own backend:
+
+```ts
+const provider: LLMProvider = {
+  async analyze(context, prompt, signal, options) {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context, prompt, options }),
+      signal,
+    })
+    return res.json()
+  },
+}
+```
+
+Your backend adds the API key server-side and forwards the request to the LLM API. This keeps secrets out of the browser entirely.
+```
+
 ## Options
 
 ```ts
