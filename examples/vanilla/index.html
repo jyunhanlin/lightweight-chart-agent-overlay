@@ -12,17 +12,17 @@
       color: #888; font-size: 13px; z-index: 10; pointer-events: none;
     }
     .mode-badge {
-      position: fixed; top: 8px; right: 12px; z-index: 10;
-      padding: 4px 10px; border-radius: 4px; font-size: 12px;
+      display: inline-block; margin-left: 8px;
+      padding: 2px 8px; border-radius: 4px; font-size: 12px;
       font-weight: 600; pointer-events: none; transition: all 0.2s;
+      vertical-align: middle;
     }
     .mode-badge.off { background: #2a2a3a; color: #666; }
     .mode-badge.on { background: #1a3a2a; color: #4ade80; }
   </style>
 </head>
 <body>
-  <div class="instructions">Press S to toggle selection mode, then drag to select a range</div>
-  <div id="mode-badge" class="mode-badge off">Selection: OFF</div>
+  <div class="instructions">Press S to toggle selection mode, then drag to select a range <span id="mode-badge" class="mode-badge off">Selection: OFF</span></div>
   <div id="chart"></div>
   <script type="module" src="./main.ts"></script>
 </body>

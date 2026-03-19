@@ -1,7 +1,6 @@
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 import { createAgentOverlay } from '../../src/index'
 import { createAnthropicProvider } from '../../src/providers/anthropic'
-import type { LLMProvider, ChartContext, AnalysisResult } from '../../src/core/types'
 
 const container = document.getElementById('chart')!
 
@@ -58,69 +57,13 @@ function generateFallbackData() {
   return data
 }
 
-// Mock provider: simulates 1.5s delay, returns support/resistance based on actual data
-const mockProvider: LLMProvider = {
-  async analyze(context: ChartContext, _prompt: string, signal?: AbortSignal) {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(resolve, 1500)
-      signal?.addEventListener('abort', () => {
-        clearTimeout(timer)
-        const err = new Error('Aborted')
-        err.name = 'AbortError'
-        reject(err)
-      })
-    })
-
-    const prices = context.data.map((d) => d.close)
-    const low = Math.min(...prices)
-    const high = Math.max(...prices)
-
-    return {
-      explanation: {
-        sections: [
-          { label: 'Technical', content: `Analyzed ${context.data.length} candles. Support found at ${low.toFixed(2)} (range low). Resistance at ${high.toFixed(2)} (range high).` },
-          { label: 'Sentiment', content: 'The price action shows consolidation between these levels with neutral sentiment.' },
-        ],
-      },
-      priceLines: [
-        { price: low, title: 'Support', color: '#26a69a', lineStyle: 'dashed' as const },
-        { price: high, title: 'Resistance', color: '#ef5350', lineStyle: 'dashed' as const },
-      ],
-      markers: [
-        {
-          time: context.data[0].time,
-          position: 'belowBar' as const,
-          shape: 'arrowUp' as const,
-          color: '#26a69a',
-          text: 'Range Start',
-        },
-        {
-          time: context.data[context.data.length - 1].time,
-          position: 'aboveBar' as const,
-          shape: 'arrowDown' as const,
-          color: '#ef5350',
-          text: 'Range End',
-        },
-      ],
-    } satisfies AnalysisResult
-  },
-}
-
-// Use real provider if API key is set, otherwise mock
-const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-const provider = apiKey
-  ? createAnthropicProvider({
-      apiKey,
-      availableModels: [
-        { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
-        { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-      ],
-    })
-  : mockProvider
-
-if (!apiKey) {
-  console.log('Using mock provider (set VITE_ANTHROPIC_API_KEY for real AI)')
-}
+const provider = createAnthropicProvider({
+  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
+  availableModels: [
+    { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  ],
+})
 
 // Load data then init
 fetchBTCData().then((data) => {

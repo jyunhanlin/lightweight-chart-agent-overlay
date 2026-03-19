@@ -119,6 +119,32 @@ export class PromptInput {
       this.dropdownManager?.closeAll()
     })
 
+    // Settings gear (far left, before dropdowns)
+    if (this.requiresApiKey) {
+      const gearBtn = document.createElement('button')
+      gearBtn.setAttribute('data-agent-overlay-settings-trigger', '')
+      gearBtn.textContent = '\u2699'
+      gearBtn.style.cssText = `
+        background: transparent; border: none; color: var(--ao-hint);
+        font-size: 16px; cursor: pointer; padding: 0;
+        font-family: inherit; flex-shrink: 0;
+      `
+
+      this.settingsPanel = new SettingsPanel(wrapper, {
+        storageKey: this.apiKeyStorageKey,
+        manager: this.dropdownManager ?? undefined,
+      })
+
+      if (this.dropdownManager) {
+        this.dropdownManager.register(this.settingsPanel)
+      }
+
+      gearBtn.addEventListener('click', () => {
+        this.settingsPanel?.open()
+      })
+      toolbar.appendChild(gearBtn)
+    }
+
     // Model dropdown
     if (this.availableModels.length > 0) {
       const modelWrapper = document.createElement('span')
@@ -192,31 +218,6 @@ export class PromptInput {
     hint.textContent = `${modKey}\u21b5`
     hint.style.cssText = `color: var(--ao-hint); font-size: 11px; flex-shrink: 0;`
     toolbar.appendChild(hint)
-
-    if (this.requiresApiKey) {
-      const gearBtn = document.createElement('button')
-      gearBtn.setAttribute('data-agent-overlay-settings-trigger', '')
-      gearBtn.textContent = '\u2699'
-      gearBtn.style.cssText = `
-        background: transparent; border: none; color: var(--ao-hint);
-        font-size: 16px; cursor: pointer; padding: 0 2px;
-        font-family: inherit; flex-shrink: 0;
-      `
-
-      this.settingsPanel = new SettingsPanel(wrapper, {
-        storageKey: this.apiKeyStorageKey,
-        manager: this.dropdownManager ?? undefined,
-      })
-
-      if (this.dropdownManager) {
-        this.dropdownManager.register(this.settingsPanel)
-      }
-
-      gearBtn.addEventListener('click', () => {
-        this.settingsPanel?.open()
-      })
-      toolbar.appendChild(gearBtn)
-    }
 
     submitBtn.addEventListener('click', () => {
       const value = textarea.value.trim()
@@ -323,6 +324,12 @@ export class PromptInput {
     }
 
     textarea.focus()
+
+    // Auto-open settings if BYOK key is missing
+    if (this.settingsPanel && !this.settingsPanel.getApiKey()) {
+      this.settingsPanel.open()
+      this.settingsPanel.showMessage('Please set your API key to get started.')
+    }
   }
 
   getLastPosition(): UIPosition | null {
