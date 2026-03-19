@@ -133,10 +133,13 @@ describe('ExplanationPopup', () => {
     expect(nav.textContent).toContain('5')
   })
 
-  it('hides nav entirely when totalCount is 1', () => {
+  it('hides nav controls when totalCount is 1', () => {
     const popup = new ExplanationPopup(container)
     popup.show({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
-    expect(container.querySelector('[data-agent-overlay-nav]')).toBeNull()
+    const nav = container.querySelector('[data-agent-overlay-nav]') as HTMLElement
+    expect(nav).not.toBeNull()
+    const navLeft = nav.firstElementChild as HTMLElement
+    expect(navLeft.style.visibility).toBe('hidden')
   })
 
   it('disables left arrow at index 0', () => {

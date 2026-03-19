@@ -846,9 +846,11 @@ describe('createAgentOverlay', () => {
       const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
       histBtn.click()
 
-      // Only 1 entry, so no nav bar, no prev/next buttons
-      const nav = el.querySelector('[data-agent-overlay-nav]')
-      expect(nav).toBeNull()
+      // Only 1 entry, so nav controls are hidden
+      const nav = el.querySelector('[data-agent-overlay-nav]') as HTMLElement
+      expect(nav).not.toBeNull()
+      const navLeft = nav.firstElementChild as HTMLElement
+      expect(navLeft.style.visibility).toBe('hidden')
 
       // Popup still shows the single entry
       const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
