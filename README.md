@@ -22,15 +22,14 @@ const series = chart.addSeries(CandlestickSeries)
 series.setData(candleData)
 
 const agent = createAgentOverlay(chart, series, {
-  provider: createAnthropicProvider({ apiKey: 'sk-...' }),
+  provider: createAnthropicProvider({
+    apiKey: 'sk-ant-...',
+    availableModels: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5' }],
+  }),
 })
 
 // Toggle selection mode (user drags to select a range)
 agent.setSelectionEnabled(true)
-
-// Listen to events
-agent.on('analyze-complete', (result) => console.log(result))
-agent.on('error', (err) => console.error(err))
 
 // Cleanup
 agent.destroy()
@@ -47,7 +46,7 @@ import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/provide
 
 const provider = createAnthropicProvider({
   apiKey: 'sk-ant-...',
-  availableModels: [                  // optional: model selector in UI (first is default)
+  availableModels: [
     { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
   ],
@@ -61,6 +60,7 @@ import { createOpenAIProvider } from 'lightweight-chart-agent-overlay/providers/
 
 const provider = createOpenAIProvider({
   apiKey: 'sk-...',
+  availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
 })
 ```
@@ -70,16 +70,11 @@ const provider = createOpenAIProvider({
 Implement the `LLMProvider` interface:
 
 ```ts
-import type { LLMProvider, ChartContext, AnalysisResult } from 'lightweight-chart-agent-overlay'
+import type { LLMProvider } from 'lightweight-chart-agent-overlay'
 
 const myProvider: LLMProvider = {
-  availableModels: [{ id: 'my-model', label: 'My Model' }], // optional
+  availableModels: [{ id: 'my-model', label: 'My Model' }],
   async analyze(context, prompt, signal?, options?) {
-    // context.data: OHLCData[] — the selected candles
-    // context.timeRange: { from, to }
-    // prompt: string — user's question or preset quickPrompt
-    // signal: AbortSignal — cancel on new selection or close
-    // options: { model?, additionalSystemPrompt? }
     return {
       explanation: 'Analysis text', // or { sections: [{ label, content }] }
       priceLines: [{ price: 100, title: 'Support', color: '#26a69a', lineStyle: 'dashed' }],
@@ -89,7 +84,7 @@ const myProvider: LLMProvider = {
 }
 ```
 
-### Security: API Keys in Production
+## Security
 
 The built-in Anthropic and OpenAI providers pass API keys directly in browser-side `fetch` calls. This is fine for **local development and prototyping**, but in production your API key would be visible to anyone inspecting network requests.
 
@@ -110,9 +105,23 @@ const provider: LLMProvider = {
 ```
 
 Your backend adds the API key server-side and forwards the request to the LLM API. This keeps secrets out of the browser entirely.
+
+## React
+
+```tsx
+import { useAgentOverlay } from 'lightweight-chart-agent-overlay/react'
+
+function ChartWithAI({ chart, series }) {
+  const { isAnalyzing, error, lastResult, setSelectionEnabled, clearOverlays } =
+    useAgentOverlay(chart, series, { provider })
+
+  return (
+    <button onClick={() => setSelectionEnabled(true)}>Select Range</button>
+  )
+}
 ```
 
-## Options
+## Options & Presets
 
 ```ts
 createAgentOverlay(chart, series, {
@@ -149,21 +158,6 @@ const myPresets: AnalysisPreset[] = [
     quickPrompt: 'The actual question sent on quick run (Cmd+Enter with no text)',
   },
 ]
-```
-
-## React
-
-```tsx
-import { useAgentOverlay } from 'lightweight-chart-agent-overlay/react'
-
-function ChartWithAI({ chart, series }) {
-  const { isAnalyzing, error, lastResult, setSelectionEnabled, clearOverlays } =
-    useAgentOverlay(chart, series, { provider })
-
-  return (
-    <button onClick={() => setSelectionEnabled(true)}>Select Range</button>
-  )
-}
 ```
 
 ## Events
