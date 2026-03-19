@@ -448,7 +448,9 @@ describe('PromptInput', () => {
   it('gear icon opens settings panel', () => {
     const prompt = new PromptInput(container, { requiresApiKey: true })
     prompt.show()
-    const gear = container.querySelector('[data-agent-overlay-settings-trigger]') as HTMLButtonElement
+    const gear = container.querySelector(
+      '[data-agent-overlay-settings-trigger]',
+    ) as HTMLButtonElement
     gear.click()
     expect(container.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
     prompt.destroy()
@@ -466,7 +468,9 @@ describe('PromptInput', () => {
     expect(document.querySelector('[data-dropdown-panel]')).not.toBeNull()
 
     // Click gear — should close model dropdown
-    const gear = container.querySelector('[data-agent-overlay-settings-trigger]') as HTMLButtonElement
+    const gear = container.querySelector(
+      '[data-agent-overlay-settings-trigger]',
+    ) as HTMLButtonElement
     gear.click()
     expect(document.querySelector('[data-dropdown-panel]')).toBeNull()
     prompt.destroy()

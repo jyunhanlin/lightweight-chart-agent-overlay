@@ -50,7 +50,9 @@ describe('SettingsPanel', () => {
     const input = container.querySelector('input[type="password"]') as HTMLInputElement
     input.value = 'sk-test-123'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    const saveBtn = container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement
+    const saveBtn = container.querySelector(
+      '[data-agent-overlay-settings-save]',
+    ) as HTMLButtonElement
     saveBtn.click()
     expect(localStorage.getItem(STORAGE_KEY)).toBe('sk-test-123')
     panel.destroy()
@@ -62,7 +64,9 @@ describe('SettingsPanel', () => {
     const input = container.querySelector('input[type="password"]') as HTMLInputElement
     input.value = 'sk-test-123'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    const saveBtn = container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement
+    const saveBtn = container.querySelector(
+      '[data-agent-overlay-settings-save]',
+    ) as HTMLButtonElement
     saveBtn.click()
     expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
     panel.destroy()
@@ -76,7 +80,9 @@ describe('SettingsPanel', () => {
     const input = container.querySelector('input[type="password"]') as HTMLInputElement
     input.value = 'sk-test-123'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    const saveBtn = container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement
+    const saveBtn = container.querySelector(
+      '[data-agent-overlay-settings-save]',
+    ) as HTMLButtonElement
     saveBtn.click()
     expect(onSave).toHaveBeenCalled()
     panel.destroy()
@@ -85,7 +91,9 @@ describe('SettingsPanel', () => {
   it('Save button is disabled when input is empty', () => {
     const panel = new SettingsPanel(container, { storageKey: STORAGE_KEY })
     panel.open()
-    const saveBtn = container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement
+    const saveBtn = container.querySelector(
+      '[data-agent-overlay-settings-save]',
+    ) as HTMLButtonElement
     expect(saveBtn.disabled).toBe(true)
     panel.destroy()
   })
@@ -107,7 +115,9 @@ describe('SettingsPanel', () => {
     localStorage.setItem(STORAGE_KEY, 'sk-existing')
     const panel = new SettingsPanel(container, { storageKey: STORAGE_KEY })
     panel.open()
-    const removeBtn = container.querySelector('[data-agent-overlay-settings-remove]') as HTMLButtonElement
+    const removeBtn = container.querySelector(
+      '[data-agent-overlay-settings-remove]',
+    ) as HTMLButtonElement
     removeBtn.click()
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
     panel.destroy()
@@ -142,7 +152,9 @@ describe('SettingsPanel', () => {
   it('× button closes panel', () => {
     const panel = new SettingsPanel(container, { storageKey: STORAGE_KEY })
     panel.open()
-    const closeBtn = container.querySelector('[data-agent-overlay-settings] [data-agent-overlay-close]') as HTMLButtonElement
+    const closeBtn = container.querySelector(
+      '[data-agent-overlay-settings] [data-agent-overlay-close]',
+    ) as HTMLButtonElement
     closeBtn.click()
     expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
     panel.destroy()

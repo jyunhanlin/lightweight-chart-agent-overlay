@@ -152,7 +152,8 @@ describe('createOpenAIProvider', () => {
   it('uses options.apiKey when constructor apiKey is omitted', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ choices: [{ message: { content: '{"explanation":"test"}' } }] }),
+      json: () =>
+        Promise.resolve({ choices: [{ message: { content: '{"explanation":"test"}' } }] }),
     })
     const provider = createOpenAIProvider({ availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
@@ -163,7 +164,8 @@ describe('createOpenAIProvider', () => {
   it('prefers constructor apiKey over options.apiKey', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ choices: [{ message: { content: '{"explanation":"test"}' } }] }),
+      json: () =>
+        Promise.resolve({ choices: [{ message: { content: '{"explanation":"test"}' } }] }),
     })
     const provider = createOpenAIProvider({ apiKey: 'sk-constructor', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })

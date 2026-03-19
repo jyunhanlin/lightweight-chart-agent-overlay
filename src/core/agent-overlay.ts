@@ -24,9 +24,9 @@ import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
 import { HistoryButton } from './ui/history-button'
 
-async function resolveHeaders(
-  provider: { headers?: LLMProvider['headers'] },
-): Promise<Readonly<Record<string, string>> | undefined> {
+async function resolveHeaders(provider: {
+  headers?: LLMProvider['headers']
+}): Promise<Readonly<Record<string, string>> | undefined> {
   if (!provider.headers) return undefined
   if (typeof provider.headers === 'function') {
     return provider.headers()
@@ -121,7 +121,7 @@ export function createAgentOverlay(
   ): Promise<void> {
     const storageKey = options.apiKeyStorageKey ?? 'agent-overlay-api-key'
     const storedApiKey = options.provider.requiresApiKey
-      ? localStorage.getItem(storageKey) ?? undefined
+      ? (localStorage.getItem(storageKey) ?? undefined)
       : undefined
 
     // Check if key is required but missing

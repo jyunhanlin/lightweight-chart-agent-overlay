@@ -37,7 +37,8 @@ export class SettingsPanel {
 
     // Title row
     const titleRow = document.createElement('div')
-    titleRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;'
+    titleRow.style.cssText =
+      'display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;'
 
     const title = document.createElement('span')
     title.textContent = 'Settings'
@@ -64,7 +65,8 @@ export class SettingsPanel {
     // Label
     const label = document.createElement('label')
     label.textContent = 'API Key'
-    label.style.cssText = 'display: block; color: var(--ao-hint); font-size: 12px; margin-bottom: 4px;'
+    label.style.cssText =
+      'display: block; color: var(--ao-hint); font-size: 12px; margin-bottom: 4px;'
     panel.appendChild(label)
 
     // Input
@@ -133,7 +135,9 @@ export class SettingsPanel {
 
   showMessage(text: string): void {
     if (!this.panelEl) return
-    const msg = this.panelEl.querySelector('[data-agent-overlay-settings-message]') as HTMLElement | null
+    const msg = this.panelEl.querySelector(
+      '[data-agent-overlay-settings-message]',
+    ) as HTMLElement | null
     if (!msg) return
     msg.textContent = text
     msg.style.display = 'block'

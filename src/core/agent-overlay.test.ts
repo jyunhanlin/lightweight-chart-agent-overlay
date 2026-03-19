@@ -660,7 +660,7 @@ describe('createAgentOverlay', () => {
       const agent = createAgentOverlay(chart as never, series as never, { provider })
       selectAndSubmit(agent, el, 'test question')
       // Give async a tick
-      await new Promise(r => setTimeout(r, 10))
+      await new Promise((r) => setTimeout(r, 10))
       // Settings panel should be open
       expect(el.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
       // Provider should NOT have been called
