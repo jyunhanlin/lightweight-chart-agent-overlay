@@ -253,7 +253,10 @@ export class PromptInput {
     wrapper.appendChild(errorDiv)
     wrapper.appendChild(progressBar)
 
-    wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
+    wrapper.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
+      this.dropdownManager?.closeAll()
+    })
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
 
