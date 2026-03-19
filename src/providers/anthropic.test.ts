@@ -135,4 +135,57 @@ describe('createAnthropicProvider', () => {
 
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('Failed to parse')
   })
+
+  it('allows creating provider without apiKey (BYOK mode)', () => {
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    expect(provider.analyze).toBeInstanceOf(Function)
+  })
+
+  it('sets requiresApiKey to true when apiKey is omitted', () => {
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    expect(provider.requiresApiKey).toBe(true)
+  })
+
+  it('sets requiresApiKey to false when apiKey is provided', () => {
+    const provider = createAnthropicProvider({ apiKey: 'sk-test', availableModels: MODELS })
+    expect(provider.requiresApiKey).toBe(false)
+  })
+
+  it('uses options.apiKey when constructor apiKey is omitted', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+    })
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['x-api-key']).toBe('sk-byok')
+  })
+
+  it('prefers constructor apiKey over options.apiKey', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'sk-constructor', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['x-api-key']).toBe('sk-constructor')
+  })
+
+  it('throws when no apiKey from constructor or options', async () => {
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('API key is required')
+  })
+
+  it('includes anthropic-dangerous-direct-browser-access header in BYOK mode', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+    })
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['anthropic-dangerous-direct-browser-access']).toBe('true')
+  })
 })

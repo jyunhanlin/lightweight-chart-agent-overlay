@@ -13,7 +13,7 @@ import { DEFAULT_SYSTEM_PROMPT } from './default-system-prompt'
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface OpenAIProviderOptions {
-  readonly apiKey: string
+  readonly apiKey?: string
   readonly systemPrompt?: string
   readonly baseURL?: string
   readonly availableModels: readonly ModelOption[]
@@ -23,18 +23,24 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
   if (options.availableModels.length === 0) {
     throw new Error('availableModels must contain at least one model')
   }
+  const constructorApiKey = options.apiKey
   const model = options.availableModels[0].id
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
   const baseURL = options.baseURL ?? API_URL
 
   return {
     availableModels: options.availableModels,
+    requiresApiKey: !constructorApiKey,
     async analyze(
       context: ChartContext,
       prompt: string,
       signal?: AbortSignal,
       analyzeOptions?: AnalyzeOptions,
     ): Promise<AnalysisResult> {
+      const apiKey = constructorApiKey ?? analyzeOptions?.apiKey
+      if (!apiKey) {
+        throw new Error('API key is required. Provide it via constructor or AnalyzeOptions.')
+      }
       const requestModel = analyzeOptions?.model ?? model
       const finalSystemPrompt = analyzeOptions?.additionalSystemPrompt
         ? `${systemPrompt}\n\n${analyzeOptions.additionalSystemPrompt}`
@@ -45,7 +51,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
       const response = await fetch(baseURL, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${options.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
