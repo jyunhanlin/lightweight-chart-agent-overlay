@@ -6,6 +6,7 @@ import type {
   AgentOverlayOptions,
   AnalysisPreset,
   ChartContext,
+  LLMProvider,
   NormalizedAnalysisResult,
   TimeValue,
 } from './types'
@@ -22,6 +23,16 @@ import { applyThemeVars } from './ui/theme'
 import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
 import { HistoryButton } from './ui/history-button'
+
+async function resolveHeaders(
+  provider: { headers?: LLMProvider['headers'] },
+): Promise<Readonly<Record<string, string>> | undefined> {
+  if (!provider.headers) return undefined
+  if (typeof provider.headers === 'function') {
+    return provider.headers()
+  }
+  return { ...provider.headers }
+}
 
 interface ChartLike {
   timeScale(): {
@@ -67,6 +78,8 @@ export function createAgentOverlay(
   const promptInput = new PromptInput(chartEl, {
     availableModels: options.provider.availableModels,
     presets,
+    requiresApiKey: options.provider.requiresApiKey,
+    apiKeyStorageKey: options.apiKeyStorageKey,
   })
   const explanationPopup = new ExplanationPopup(chartEl)
 
@@ -106,14 +119,30 @@ export function createAgentOverlay(
     analysisPresets: readonly AnalysisPreset[],
     currentRange: { readonly from: TimeValue; readonly to: TimeValue },
   ): Promise<void> {
+    const storageKey = options.apiKeyStorageKey ?? 'agent-overlay-api-key'
+    const storedApiKey = options.provider.requiresApiKey
+      ? localStorage.getItem(storageKey) ?? undefined
+      : undefined
+
+    // Check if key is required but missing
+    if (options.provider.requiresApiKey && !storedApiKey) {
+      promptInput.openSettings('Please enter your API key to continue.')
+      return
+    }
+
     promptInput.setLoading(true)
     emitter.emit('analyze-start')
     abortController = new AbortController()
+    const { signal } = abortController
 
     try {
-      const rawResult = await options.provider.analyze(context, prompt, abortController.signal, {
+      const resolvedHeaders = await resolveHeaders(options.provider)
+
+      const rawResult = await options.provider.analyze(context, prompt, signal, {
         model: promptInput.getSelectedModel(),
         additionalSystemPrompt: additionalSystemPrompt || undefined,
+        apiKey: storedApiKey,
+        headers: resolvedHeaders,
       })
       const result: NormalizedAnalysisResult = validateResult(rawResult)
 
@@ -148,8 +177,16 @@ export function createAgentOverlay(
       emitter.emit('analyze-complete', result)
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        promptInput.setLoading(false)
-        promptInput.showError(err instanceof Error ? err.message : String(err))
+        const message = err instanceof Error ? err.message : String(err)
+        const isAuthError = /\b(401|403)\b/.test(message)
+
+        if (isAuthError && options.provider.requiresApiKey) {
+          promptInput.setLoading(false)
+          promptInput.openSettings('Invalid API key. Please check your key in Settings.')
+        } else {
+          promptInput.setLoading(false)
+          promptInput.showError(message)
+        }
         emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
       }
     } finally {

@@ -579,6 +579,115 @@ describe('createAgentOverlay', () => {
     })
   })
 
+  describe('Provider auth — apiKey and headers', () => {
+    it('passes apiKey from localStorage to provider.analyze()', async () => {
+      localStorage.setItem('agent-overlay-api-key', 'sk-stored')
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        requiresApiKey: true,
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+      const options = (provider.analyze as any).mock.calls[0][3]
+      expect(options.apiKey).toBe('sk-stored')
+      agent.destroy()
+      localStorage.clear()
+    })
+
+    it('resolves static provider.headers and passes to analyze()', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        headers: { Authorization: 'Bearer token123' },
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+      const options = (provider.analyze as any).mock.calls[0][3]
+      expect(options.headers).toEqual({ Authorization: 'Bearer token123' })
+      agent.destroy()
+    })
+
+    it('resolves async provider.headers and passes to analyze()', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        headers: async () => ({ 'X-Custom': 'async-value' }),
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+      const options = (provider.analyze as any).mock.calls[0][3]
+      expect(options.headers).toEqual({ 'X-Custom': 'async-value' })
+      agent.destroy()
+    })
+
+    it('does not pass apiKey when provider does not require it', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+      const options = (provider.analyze as any).mock.calls[0][3]
+      expect(options.apiKey).toBeUndefined()
+      agent.destroy()
+    })
+
+    it('auto-opens settings panel when requiresApiKey and no key available', async () => {
+      localStorage.clear()
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        requiresApiKey: true,
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      // Give async a tick
+      await new Promise(r => setTimeout(r, 10))
+      // Settings panel should be open
+      expect(el.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
+      // Provider should NOT have been called
+      expect(provider.analyze).not.toHaveBeenCalled()
+      agent.destroy()
+    })
+
+    it('auto-opens settings panel on 401 auth error', async () => {
+      localStorage.setItem('agent-overlay-api-key', 'sk-bad')
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        requiresApiKey: true,
+        analyze: vi.fn().mockRejectedValue(new Error('Anthropic API error (401): Invalid API key')),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(el.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
+      })
+      const msg = el.querySelector('[data-agent-overlay-settings-message]') as HTMLElement
+      expect(msg.textContent).toContain('Invalid API key')
+      agent.destroy()
+      localStorage.clear()
+    })
+  })
+
   describe('History navigation', () => {
     it('history button click when nothing showing restores latest entry', async () => {
       const { chart, el } = createMockChart()
