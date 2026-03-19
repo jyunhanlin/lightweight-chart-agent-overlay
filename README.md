@@ -2,6 +2,8 @@
 
 AI-powered analysis overlay for [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts) v5. Select a range of candlesticks, ask a question (or run preset analysis), and get structured results rendered as price lines, markers, and explanation popups — all driven by any LLM provider.
 
+https://github.com/user-attachments/assets/c017ce6f-0a67-43ec-9f0e-0b47c1a187c5
+
 ## Install
 
 ```bash

@@ -4,3 +4,4 @@ coverage/
 .superpowers/
 *.tgz
 .env.local
+assets/
