@@ -73,7 +73,7 @@ export class PromptInput {
     // ── Textarea ───────────────────────────────────────────────────────────
     const textarea = document.createElement('textarea')
     textarea.placeholder = 'Ask about this range, or leave empty to run presets'
-    textarea.rows = 2
+    textarea.rows = 1
     textarea.style.cssText = `
       display: block; width: 100%; box-sizing: border-box;
       background: transparent; border: none; outline: none;
