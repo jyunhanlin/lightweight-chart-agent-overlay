@@ -1,5 +1,8 @@
 // src/core/ui/dropdown-manager.ts
-import type { Dropdown } from './dropdown'
+
+export interface Closeable {
+  close(): void
+}
 
 /**
  * Ensures only one dropdown is open at a time.
@@ -7,17 +10,17 @@ import type { Dropdown } from './dropdown'
  * others when one opens.
  */
 export class DropdownManager {
-  private readonly dropdowns: Set<Dropdown> = new Set()
+  private readonly dropdowns: Set<Closeable> = new Set()
 
-  register(dropdown: Dropdown): void {
+  register(dropdown: Closeable): void {
     this.dropdowns.add(dropdown)
   }
 
-  unregister(dropdown: Dropdown): void {
+  unregister(dropdown: Closeable): void {
     this.dropdowns.delete(dropdown)
   }
 
-  closeAllExcept(keep: Dropdown): void {
+  closeAllExcept(keep: Closeable): void {
     for (const dd of this.dropdowns) {
       if (dd !== keep) dd.close()
     }

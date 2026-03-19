@@ -5,6 +5,7 @@ import type { ModelOption, AnalysisPreset } from '../types'
 import { makeDraggable } from './make-draggable'
 import { Dropdown } from './dropdown'
 import { DropdownManager } from './dropdown-manager'
+import { SettingsPanel } from './settings-panel'
 
 const SUBMIT_ACTIVE_BG = '#2196f3'
 const SUBMIT_INACTIVE_BG = '#555'
@@ -13,12 +14,16 @@ const ERROR_DISMISS_MS = 5000
 export interface PromptInputOptions {
   readonly availableModels?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
+  readonly requiresApiKey?: boolean
+  readonly apiKeyStorageKey?: string
 }
 
 export class PromptInput {
   private readonly container: HTMLElement
   private readonly availableModels: readonly ModelOption[]
   private readonly presets: readonly AnalysisPreset[]
+  private readonly requiresApiKey: boolean
+  private readonly apiKeyStorageKey: string | undefined
 
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
@@ -27,6 +32,7 @@ export class PromptInput {
   private presetDropdown: Dropdown | null = null
   private dropdownManager: DropdownManager | null = null
   private errorTimer: ReturnType<typeof setTimeout> | null = null
+  private settingsPanel: SettingsPanel | null = null
 
   onSubmit: ((prompt: string) => void) | null = null
   onCancel: (() => void) | null = null
@@ -36,6 +42,8 @@ export class PromptInput {
     this.container = container
     this.availableModels = options?.availableModels ?? []
     this.presets = options?.presets ?? []
+    this.requiresApiKey = options?.requiresApiKey ?? false
+    this.apiKeyStorageKey = options?.apiKeyStorageKey
   }
 
   show(position?: UIPosition): void {
@@ -185,6 +193,31 @@ export class PromptInput {
     hint.style.cssText = `color: var(--ao-hint); font-size: 11px; flex-shrink: 0;`
     toolbar.appendChild(hint)
 
+    if (this.requiresApiKey) {
+      const gearBtn = document.createElement('button')
+      gearBtn.setAttribute('data-agent-overlay-settings-trigger', '')
+      gearBtn.textContent = '\u2699'
+      gearBtn.style.cssText = `
+        background: transparent; border: none; color: var(--ao-hint);
+        font-size: 16px; cursor: pointer; padding: 0 2px;
+        font-family: inherit; flex-shrink: 0;
+      `
+
+      this.settingsPanel = new SettingsPanel(wrapper, {
+        storageKey: this.apiKeyStorageKey,
+        manager: this.dropdownManager ?? undefined,
+      })
+
+      if (this.dropdownManager) {
+        this.dropdownManager.register(this.settingsPanel)
+      }
+
+      gearBtn.addEventListener('click', () => {
+        this.settingsPanel?.open()
+      })
+      toolbar.appendChild(gearBtn)
+    }
+
     submitBtn.addEventListener('click', () => {
       const value = textarea.value.trim()
       if (value) {
@@ -310,6 +343,14 @@ export class PromptInput {
     })
   }
 
+  openSettings(message?: string): void {
+    if (!this.settingsPanel) return
+    this.settingsPanel.open()
+    if (message) {
+      this.settingsPanel.showMessage(message)
+    }
+  }
+
   showError(message: string): void {
     if (!this.wrapper) return
     const errorDiv = this.wrapper.querySelector('[data-agent-overlay-error]') as HTMLElement | null
@@ -375,6 +416,8 @@ export class PromptInput {
     this.modelDropdown = null
     this.presetDropdown?.destroy()
     this.presetDropdown = null
+    this.settingsPanel?.destroy()
+    this.settingsPanel = null
     if (this.wrapper) {
       this.wrapper.remove()
       this.wrapper = null

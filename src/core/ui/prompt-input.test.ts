@@ -418,4 +418,91 @@ describe('PromptInput', () => {
     document.removeEventListener('mousedown', outerHandler)
     prompt.destroy()
   })
+
+  // ── Settings gear icon ────────────────────────────────────────────────────
+
+  it('shows gear icon when requiresApiKey is true', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: true })
+    prompt.show()
+    const gear = container.querySelector('[data-agent-overlay-settings-trigger]')
+    expect(gear).not.toBeNull()
+    prompt.destroy()
+  })
+
+  it('hides gear icon when requiresApiKey is false', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: false })
+    prompt.show()
+    const gear = container.querySelector('[data-agent-overlay-settings-trigger]')
+    expect(gear).toBeNull()
+    prompt.destroy()
+  })
+
+  it('hides gear icon when requiresApiKey is not set', () => {
+    const prompt = new PromptInput(container)
+    prompt.show()
+    const gear = container.querySelector('[data-agent-overlay-settings-trigger]')
+    expect(gear).toBeNull()
+    prompt.destroy()
+  })
+
+  it('gear icon opens settings panel', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: true })
+    prompt.show()
+    const gear = container.querySelector('[data-agent-overlay-settings-trigger]') as HTMLButtonElement
+    gear.click()
+    expect(container.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
+    prompt.destroy()
+  })
+
+  it('gear icon closes other dropdowns via manager', () => {
+    const prompt = new PromptInput(container, {
+      availableModels: MODELS,
+      requiresApiKey: true,
+    })
+    prompt.show()
+    // Open model dropdown first
+    const triggers = container.querySelectorAll('[data-dropdown-trigger]')
+    ;(triggers[0] as HTMLButtonElement).click()
+    expect(document.querySelector('[data-dropdown-panel]')).not.toBeNull()
+
+    // Click gear — should close model dropdown
+    const gear = container.querySelector('[data-agent-overlay-settings-trigger]') as HTMLButtonElement
+    gear.click()
+    expect(document.querySelector('[data-dropdown-panel]')).toBeNull()
+    prompt.destroy()
+  })
+
+  // ── openSettings ──────────────────────────────────────────────────────────
+
+  it('openSettings() opens settings panel when requiresApiKey', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: true })
+    prompt.show()
+    prompt.openSettings()
+    expect(container.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
+    prompt.destroy()
+  })
+
+  it('openSettings() with message shows message in settings panel', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: true })
+    prompt.show()
+    prompt.openSettings('Enter your key')
+    const msg = container.querySelector('[data-agent-overlay-settings-message]') as HTMLElement
+    expect(msg.textContent).toContain('Enter your key')
+    prompt.destroy()
+  })
+
+  it('openSettings() is a no-op when requiresApiKey is false', () => {
+    const prompt = new PromptInput(container)
+    prompt.show()
+    prompt.openSettings()
+    expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
+    prompt.destroy()
+  })
+
+  it('openSettings() is a no-op when prompt is not shown', () => {
+    const prompt = new PromptInput(container, { requiresApiKey: true })
+    expect(() => prompt.openSettings()).not.toThrow()
+    expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
+    prompt.destroy()
+  })
 })
