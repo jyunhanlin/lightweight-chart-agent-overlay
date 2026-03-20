@@ -1,0 +1,276 @@
+// src/core/ui/chat-input.ts
+import type { ModelOption, AnalysisPreset } from '../types'
+import { Dropdown } from './dropdown'
+import { DropdownManager } from './dropdown-manager'
+import { SettingsPanel } from './settings-panel'
+
+const ERROR_DISMISS_MS = 5000
+const MIN_HEIGHT = 40
+const MAX_HEIGHT = 140
+
+export interface ChatInputOptions {
+  readonly availableModels?: readonly ModelOption[]
+  readonly presets?: readonly AnalysisPreset[]
+  readonly requiresApiKey?: boolean
+  readonly apiKeyStorageKey?: string
+}
+
+export class ChatInput {
+  private readonly containerEl: HTMLElement
+  private readonly availableModels: readonly ModelOption[]
+  private readonly presets: readonly AnalysisPreset[]
+  private readonly requiresApiKey: boolean
+  private readonly apiKeyStorageKey: string | undefined
+
+  private readonly textarea: HTMLTextAreaElement
+  private readonly errorDiv: HTMLElement
+  private modelDropdown: Dropdown | null = null
+  private presetDropdown: Dropdown | null = null
+  private readonly dropdownManager: DropdownManager
+  private settingsPanel: SettingsPanel | null = null
+  private errorTimer: ReturnType<typeof setTimeout> | null = null
+
+  onSubmit: ((text: string) => void) | null = null
+
+  constructor(container: HTMLElement, options?: ChatInputOptions) {
+    this.containerEl = container
+    this.availableModels = options?.availableModels ?? []
+    this.presets = options?.presets ?? []
+    this.requiresApiKey = options?.requiresApiKey ?? false
+    this.apiKeyStorageKey = options?.apiKeyStorageKey
+    this.dropdownManager = new DropdownManager()
+
+    this.textarea = this.buildTextarea()
+    this.errorDiv = this.buildErrorDiv()
+
+    const toolbar = this.buildToolbar()
+
+    // ── Input row (textarea + ⌘↵ hint) ──────────────────────────────────────
+    const inputRow = document.createElement('div')
+    inputRow.style.cssText = `
+      display: flex; align-items: flex-end; gap: 6px;
+      padding: 8px 10px 6px;
+    `
+    inputRow.appendChild(this.textarea)
+
+    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
+    const hint = document.createElement('span')
+    hint.textContent = `${modKey}\u21b5`
+    hint.style.cssText = `color: var(--ao-hint); font-size: 11px; flex-shrink: 0; padding-bottom: 2px;`
+    inputRow.appendChild(hint)
+
+    this.containerEl.appendChild(toolbar)
+    this.containerEl.appendChild(inputRow)
+    this.containerEl.appendChild(this.errorDiv)
+
+    // Auto-open settings if BYOK key is missing
+    if (this.settingsPanel && !this.settingsPanel.getApiKey()) {
+      this.settingsPanel.open()
+      this.settingsPanel.showMessage('Please set your API key to get started.')
+    }
+  }
+
+  // ── Private builders ───────────────────────────────────────────────────────
+
+  private buildTextarea(): HTMLTextAreaElement {
+    const ta = document.createElement('textarea')
+    ta.placeholder = 'Ask a follow-up...'
+    ta.rows = 1
+    ta.style.cssText = `
+      flex: 1; box-sizing: border-box;
+      background: transparent; border: none; outline: none;
+      color: var(--ao-text); font-size: 14px; font-family: inherit;
+      line-height: 20px; resize: none; padding: 2px 4px; cursor: text;
+      overflow: hidden; min-height: ${MIN_HEIGHT}px;
+    `
+    ta.style.height = `${MIN_HEIGHT}px`
+
+    const autoGrow = () => {
+      ta.style.height = `${MIN_HEIGHT}px`
+      const targetHeight = Math.max(ta.scrollHeight, MIN_HEIGHT)
+      ta.style.height = `${Math.min(targetHeight, MAX_HEIGHT)}px`
+      ta.style.overflow = targetHeight > MAX_HEIGHT ? 'auto' : 'hidden'
+    }
+    ta.addEventListener('input', autoGrow)
+
+    ta.addEventListener('focus', () => {
+      this.dropdownManager.closeAll()
+    })
+
+    ta.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        const value = ta.value.trim()
+        if (value) {
+          this.clearError()
+          ta.value = ''
+          autoGrow()
+          this.onSubmit?.(value)
+        }
+      }
+    })
+
+    return ta
+  }
+
+  private buildToolbar(): HTMLElement {
+    const toolbar = document.createElement('div')
+    toolbar.setAttribute('data-chat-input-toolbar', '')
+    toolbar.style.cssText = `
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-bottom: 1px solid var(--ao-border);
+    `
+
+    // Settings gear (far left)
+    if (this.requiresApiKey) {
+      const gearBtn = document.createElement('button')
+      gearBtn.setAttribute('data-agent-overlay-settings-trigger', '')
+      gearBtn.textContent = '\u2699'
+      gearBtn.style.cssText = `
+        background: transparent; border: none; color: var(--ao-hint);
+        font-size: 16px; cursor: pointer; padding: 0;
+        font-family: inherit; flex-shrink: 0;
+      `
+
+      this.settingsPanel = new SettingsPanel(this.containerEl, {
+        storageKey: this.apiKeyStorageKey,
+        manager: this.dropdownManager,
+      })
+      this.dropdownManager.register(this.settingsPanel)
+
+      gearBtn.addEventListener('click', () => {
+        this.settingsPanel?.open()
+      })
+      toolbar.appendChild(gearBtn)
+    }
+
+    // Model dropdown
+    if (this.availableModels.length > 0) {
+      const modelWrapper = document.createElement('span')
+      modelWrapper.setAttribute('data-chat-input-model-dropdown', '')
+      this.modelDropdown = new Dropdown({
+        items: [...this.availableModels],
+        multiSelect: false,
+        placeholder: 'Model',
+        manager: this.dropdownManager,
+      })
+      this.dropdownManager.register(this.modelDropdown)
+      modelWrapper.appendChild(this.modelDropdown.element)
+      toolbar.appendChild(modelWrapper)
+
+      // Pre-select first model
+      this.modelDropdown.setSelected([this.availableModels[0].id])
+    }
+
+    // Preset dropdown
+    if (this.presets.length > 0) {
+      const presetWrapper = document.createElement('span')
+      presetWrapper.setAttribute('data-chat-input-preset-dropdown', '')
+      this.presetDropdown = new Dropdown({
+        items: this.presets.map((p, i) => ({ id: `preset-${i}`, label: p.label })),
+        multiSelect: true,
+        placeholder: 'Presets',
+        manager: this.dropdownManager,
+      })
+      this.dropdownManager.register(this.presetDropdown)
+      presetWrapper.appendChild(this.presetDropdown.element)
+      toolbar.appendChild(presetWrapper)
+
+      // Pre-select first preset
+      this.presetDropdown.setSelected(['preset-0'])
+    }
+
+    // Spacer
+    const spacer = document.createElement('div')
+    spacer.style.cssText = 'flex: 1'
+    toolbar.appendChild(spacer)
+
+    return toolbar
+  }
+
+  private buildErrorDiv(): HTMLElement {
+    const errorDiv = document.createElement('div')
+    errorDiv.setAttribute('data-chat-input-error', '')
+    errorDiv.style.cssText = `
+      display: none; padding: 4px 12px 6px;
+      font-size: 12px; color: #f44336;
+    `
+    return errorDiv
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
+
+  getSelectedModel(): string | undefined {
+    if (!this.modelDropdown) return undefined
+    const selected = this.modelDropdown.getSelected()
+    return selected.length > 0 ? selected[0].id : undefined
+  }
+
+  getSelectedPresets(): readonly AnalysisPreset[] {
+    if (!this.presetDropdown) return []
+    return this.presetDropdown.getSelected().map((item) => {
+      const idx = parseInt(item.id.replace('preset-', ''), 10)
+      return this.presets[idx]
+    })
+  }
+
+  setLoading(loading: boolean): void {
+    this.textarea.disabled = loading
+    this.textarea.style.pointerEvents = loading ? 'none' : 'auto'
+  }
+
+  openSettings(message?: string): void {
+    if (!this.settingsPanel) return
+    this.settingsPanel.open()
+    if (message) {
+      this.settingsPanel.showMessage(message)
+    }
+  }
+
+  showError(message: string): void {
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
+    }
+
+    this.errorDiv.textContent = message
+    this.errorDiv.style.display = 'block'
+
+    this.errorTimer = setTimeout(() => {
+      this.errorDiv.style.display = 'none'
+      this.errorTimer = null
+    }, ERROR_DISMISS_MS)
+  }
+
+  private clearError(): void {
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
+    }
+    this.errorDiv.style.display = 'none'
+  }
+
+  focus(): void {
+    this.textarea.focus()
+  }
+
+  destroy(): void {
+    if (this.errorTimer !== null) {
+      clearTimeout(this.errorTimer)
+      this.errorTimer = null
+    }
+    this.dropdownManager.destroy()
+    this.modelDropdown?.destroy()
+    this.modelDropdown = null
+    this.presetDropdown?.destroy()
+    this.presetDropdown = null
+    this.settingsPanel?.destroy()
+    this.settingsPanel = null
+    this.onSubmit = null
+
+    // Remove all rendered children
+    while (this.containerEl.firstChild) {
+      this.containerEl.removeChild(this.containerEl.firstChild)
+    }
+  }
+}
