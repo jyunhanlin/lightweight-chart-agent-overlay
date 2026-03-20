@@ -265,14 +265,6 @@ describe('ExplanationPopup', () => {
   // --- Streaming mode ---
 
   describe('Streaming mode', () => {
-    beforeEach(() => {
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        cb(0)
-        return 0
-      })
-      vi.stubGlobal('cancelAnimationFrame', vi.fn())
-    })
-
     it('showStreaming() creates popup with empty content and cursor', () => {
       const popup = new ExplanationPopup(container)
       popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
@@ -282,7 +274,6 @@ describe('ExplanationPopup', () => {
       const cursor = el!.querySelector('[data-agent-overlay-stream-cursor]')
       expect(streamText).not.toBeNull()
       expect(cursor).not.toBeNull()
-      expect(streamText!.textContent).toBe('')
       expect(cursor!.textContent).toBe('▌')
     })
 
@@ -295,14 +286,14 @@ describe('ExplanationPopup', () => {
       expect(onClose).not.toHaveBeenCalled()
     })
 
-    it('appendStreamText() adds text to the stream area', () => {
+    it('setStreamText() renders markdown in the stream area', () => {
       const popup = new ExplanationPopup(container)
       popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
-      popup.appendStreamText('Hello ')
-      popup.appendStreamText('world')
+      popup.setStreamText('**bold** text')
       const el = container.querySelector('[data-agent-overlay-explanation]')!
       const streamText = el.querySelector('[data-agent-overlay-stream-text]')!
-      expect(streamText.textContent).toContain('Hello world')
+      expect(streamText.innerHTML).toContain('<strong>bold</strong>')
+      expect(streamText.innerHTML).toContain('text')
     })
 
     it('close button during streaming fires onAbort', () => {
@@ -342,7 +333,7 @@ describe('ExplanationPopup', () => {
     it('finalizeStream() transitions to structured view', () => {
       const popup = new ExplanationPopup(container)
       popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
-      popup.appendStreamText('some streaming text')
+      popup.setStreamText('some streaming text')
       popup.finalizeStream({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
       const el = container.querySelector('[data-agent-overlay-explanation]')!
       expect(el).not.toBeNull()

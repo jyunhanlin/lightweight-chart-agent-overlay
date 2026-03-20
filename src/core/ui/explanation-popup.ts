@@ -8,6 +8,7 @@ import {
 } from './calculate-position'
 import { makeDraggable } from './make-draggable'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // Configure marked for compact output
 marked.setOptions({ breaks: true, gfm: true })
@@ -28,7 +29,7 @@ export interface StreamingContext {
 }
 
 function renderMarkdown(text: string): string {
-  return marked.parse(text) as string
+  return DOMPurify.sanitize(marked.parse(text) as string)
 }
 
 function injectMarkdownStyles(): void {
@@ -254,8 +255,6 @@ export class ExplanationPopup {
   // Streaming state
   private isStreaming = false
   private streamTextEl: HTMLElement | null = null
-  private pendingText = ''
-  private rafId: number | null = null
 
   onClose: (() => void) | null = null
   onNavigate: ((direction: -1 | 1) => void) | null = null
@@ -340,11 +339,6 @@ export class ExplanationPopup {
     this.removeWrapperDirectly()
     this.isStreaming = false
     this.streamTextEl = null
-    this.pendingText = ''
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
 
     this.isStreaming = true
 
@@ -423,41 +417,9 @@ export class ExplanationPopup {
     }
   }
 
-  appendStreamText(chunk: string): void {
-    if (!this.isStreaming || !this.streamTextEl) return
-
-    this.pendingText += chunk
-
-    if (this.rafId === null) {
-      // Mark as scheduled with a sentinel before calling requestAnimationFrame,
-      // because the stub in tests may invoke the callback synchronously (before
-      // the return value is assigned).
-      this.rafId = -1
-      const id = requestAnimationFrame(() => {
-        this.rafId = null
-        if (!this.streamTextEl) return
-        this.streamTextEl.textContent = (this.streamTextEl.textContent ?? '') + this.pendingText
-        this.pendingText = ''
-        // Auto-scroll wrapper
-        if (this.wrapper) {
-          this.wrapper.scrollTop = this.wrapper.scrollHeight
-        }
-      })
-      // Only overwrite sentinel if callback hasn't already cleared it
-      if (this.rafId === -1) {
-        this.rafId = id
-      }
-    }
-  }
-
   finalizeStream(options: ExplanationShowOptions): void {
     this.isStreaming = false
     this.streamTextEl = null
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
-    this.pendingText = ''
 
     // Remove streaming popup directly — do NOT trigger onClose
     this.removeWrapperDirectly()
@@ -470,11 +432,6 @@ export class ExplanationPopup {
     // Clean up streaming state
     this.isStreaming = false
     this.streamTextEl = null
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
-    this.pendingText = ''
 
     this.cleanupDrag?.()
     this.cleanupDrag = null

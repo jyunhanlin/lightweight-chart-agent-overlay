@@ -56,6 +56,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          ...analyzeOptions?.headers,
         },
         body: JSON.stringify({
           model: requestModel,
@@ -125,12 +126,16 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
       }
 
       for await (const event of parseSSE(response.body!)) {
-        const parsed = JSON.parse(event.data) as {
-          choices?: Array<{ delta?: { content?: string } }>
-        }
-        const content = parsed.choices?.[0]?.delta?.content
-        if (content) {
-          yield content
+        try {
+          const parsed = JSON.parse(event.data) as {
+            choices?: Array<{ delta?: { content?: string } }>
+          }
+          const content = parsed.choices?.[0]?.delta?.content
+          if (content) {
+            yield content
+          }
+        } catch {
+          // Skip non-JSON events
         }
       }
     },
