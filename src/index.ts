@@ -24,4 +24,6 @@ export type {
   PromptBuildResult,
   PromptBuilder,
   HistoryEntry,
+  ChatMessage,
+  ChatTurn,
 } from './core/types'
