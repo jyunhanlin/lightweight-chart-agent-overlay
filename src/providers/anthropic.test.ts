@@ -2,6 +2,18 @@
 import { createAnthropicProvider } from './anthropic'
 import type { ChartContext } from '../core/types'
 
+function createSSEStream(events: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder()
+  return new ReadableStream({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(encoder.encode(event))
+      }
+      controller.close()
+    },
+  })
+}
+
 const MOCK_CONTEXT: ChartContext = {
   timeRange: { from: 1000, to: 3000 },
   data: [
@@ -180,6 +192,17 @@ describe('createAnthropicProvider', () => {
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('API key is required')
   })
 
+  it('merges options.headers into request', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'test', undefined, { headers: { 'X-Custom': 'value' } })
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['X-Custom']).toBe('value')
+  })
+
   it('includes anthropic-dangerous-direct-browser-access header in BYOK mode', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -189,5 +212,101 @@ describe('createAnthropicProvider', () => {
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
     const headers = (globalThis.fetch as any).mock.calls[0][1].headers
     expect(headers['anthropic-dangerous-direct-browser-access']).toBe('true')
+  })
+})
+
+describe('analyzeStream', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns an async iterable of text chunks', async () => {
+    const sseEvents = [
+      'event: message_start\ndata: {"type":"message_start"}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":" world"}}\n\n',
+      'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, body: createSSEStream(sseEvents) })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
+    const chunks: string[] = []
+    for await (const chunk of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      chunks.push(chunk)
+    }
+    expect(chunks).toEqual(['Hello', ' world'])
+  })
+
+  it('sends stream: true in request body', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: createSSEStream(['event: message_stop\ndata: {"type":"message_stop"}\n\n']),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+    }
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.stream).toBe(true)
+  })
+
+  it('uses options.apiKey when constructor apiKey is omitted', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: createSSEStream(['event: message_stop\ndata: {"type":"message_stop"}\n\n']),
+    })
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test', undefined, {
+      apiKey: 'sk-byok',
+    })) {
+    }
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['x-api-key']).toBe('sk-byok')
+  })
+
+  it('throws when no apiKey available', async () => {
+    const provider = createAnthropicProvider({ availableModels: MODELS })
+    await expect(async () => {
+      for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      }
+    }).rejects.toThrow('API key is required')
+  })
+
+  it('throws on non-ok response', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 401, text: () => Promise.resolve('Unauthorized') })
+    const provider = createAnthropicProvider({ apiKey: 'bad-key', availableModels: MODELS })
+    await expect(async () => {
+      for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      }
+    }).rejects.toThrow('Anthropic API error')
+  })
+
+  it('forwards AbortSignal to fetch', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: createSSEStream(['event: message_stop\ndata: {"type":"message_stop"}\n\n']),
+    })
+    const controller = new AbortController()
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test', controller.signal)) {
+    }
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: controller.signal }),
+    )
+  })
+
+  it('merges options.headers into request', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: createSSEStream(['event: message_stop\ndata: {"type":"message_stop"}\n\n']),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test', undefined, {
+      headers: { 'X-Custom': 'value' },
+    })) {
+    }
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['X-Custom']).toBe('value')
   })
 })
