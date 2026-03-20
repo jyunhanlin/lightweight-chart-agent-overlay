@@ -7,7 +7,7 @@ import type {
   ModelOption,
   AnalyzeOptions,
 } from '../core/types'
-import { extractJsonFromText } from './parse-response'
+import { parseStreamedResponse } from './parse-response'
 import { DEFAULT_SYSTEM_PROMPT } from './default-system-prompt'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
@@ -70,8 +70,12 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
 
       const data = await response.json()
       const text = data.content?.[0]?.text ?? ''
-
-      return extractJsonFromText(text) as AnalysisResult
+      const parsed = parseStreamedResponse(text)
+      return {
+        explanation: parsed.explanation || undefined,
+        priceLines: parsed.overlays.priceLines,
+        markers: parsed.overlays.markers,
+      }
     },
   }
 }

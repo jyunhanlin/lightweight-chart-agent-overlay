@@ -34,16 +34,17 @@ describe('createAnthropicProvider', () => {
   })
 
   it('calls fetch with correct Anthropic API shape', async () => {
-    const mockResponse = {
-      explanation: 'Support at 100',
-      priceLines: [{ price: 100, title: 'Support' }],
-    }
+    const responseText = `Support at 100
+
+\`\`\`json
+{ "priceLines": [{ "price": 100, "title": "Support" }] }
+\`\`\``
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
-          content: [{ type: 'text', text: JSON.stringify(mockResponse) }],
+          content: [{ type: 'text', text: responseText }],
         }),
     })
 
@@ -69,7 +70,7 @@ describe('createAnthropicProvider', () => {
   it('should use analyzeOptions.model when provided', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
     })
     const provider = createAnthropicProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { model: 'claude-sonnet-4-6' })
@@ -80,7 +81,7 @@ describe('createAnthropicProvider', () => {
   it('should append additionalSystemPrompt', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
     })
     const provider = createAnthropicProvider({ apiKey: 'test', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, {
@@ -122,7 +123,7 @@ describe('createAnthropicProvider', () => {
     )
   })
 
-  it('handles malformed JSON from LLM gracefully', async () => {
+  it('handles malformed text from LLM gracefully', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -132,8 +133,9 @@ describe('createAnthropicProvider', () => {
     })
 
     const provider = createAnthropicProvider({ apiKey: 'test-key', availableModels: MODELS })
-
-    await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('Failed to parse')
+    const result = await provider.analyze(MOCK_CONTEXT, 'test')
+    expect(result.explanation).toBe('not valid json {{{')
+    expect(result.priceLines).toBeUndefined()
   })
 
   it('allows creating provider without apiKey (BYOK mode)', () => {
@@ -154,7 +156,7 @@ describe('createAnthropicProvider', () => {
   it('uses options.apiKey when constructor apiKey is omitted', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
     })
     const provider = createAnthropicProvider({ availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
@@ -165,7 +167,7 @@ describe('createAnthropicProvider', () => {
   it('prefers constructor apiKey over options.apiKey', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
     })
     const provider = createAnthropicProvider({ apiKey: 'sk-constructor', availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
@@ -181,7 +183,7 @@ describe('createAnthropicProvider', () => {
   it('includes anthropic-dangerous-direct-browser-access header in BYOK mode', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: [{ text: '{"explanation":"test"}' }] }),
+      json: () => Promise.resolve({ content: [{ text: 'test' }] }),
     })
     const provider = createAnthropicProvider({ availableModels: MODELS })
     await provider.analyze(MOCK_CONTEXT, 'test', undefined, { apiKey: 'sk-byok' })
