@@ -1,14 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import { createHistoryStore } from './history-store'
-import type { HistoryEntry } from './types'
+import type { HistoryEntry, ChatTurn } from './types'
 
-function makeEntry(prompt: string): HistoryEntry {
+function makeTurn(overrides: Partial<ChatTurn> = {}): ChatTurn {
   return {
-    prompt,
-    isQuickRun: false,
-    presets: [],
+    userMessage: 'test question',
+    rawResponse: 'test response',
     result: {},
-    range: { from: 1, to: 2 },
+    model: 'test-model',
+    presets: [],
+    ...overrides,
+  }
+}
+
+function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
+  return {
+    turns: [makeTurn()],
+    range: { from: 1000, to: 2000 },
+    ...overrides,
   }
 }
 
@@ -21,7 +30,7 @@ describe('createHistoryStore', () => {
 
   it('should push and retrieve entries', () => {
     const store = createHistoryStore()
-    const entry = makeEntry('test')
+    const entry = makeEntry()
     store.push(entry)
     expect(store.size()).toBe(1)
     expect(store.getAll()[0]).toBe(entry)
@@ -29,8 +38,8 @@ describe('createHistoryStore', () => {
 
   it('should get entry by index', () => {
     const store = createHistoryStore()
-    const e1 = makeEntry('first')
-    const e2 = makeEntry('second')
+    const e1 = makeEntry({ turns: [makeTurn({ userMessage: 'first' })] })
+    const e2 = makeEntry({ turns: [makeTurn({ userMessage: 'second' })] })
     store.push(e1)
     store.push(e2)
     expect(store.get(0)).toBe(e1)
@@ -45,9 +54,10 @@ describe('createHistoryStore', () => {
 
   it('should return latest entry', () => {
     const store = createHistoryStore()
-    store.push(makeEntry('first'))
-    store.push(makeEntry('second'))
-    expect(store.latest()?.prompt).toBe('second')
+    store.push(makeEntry({ turns: [makeTurn({ userMessage: 'first' })] }))
+    const second = makeEntry({ turns: [makeTurn({ userMessage: 'second' })] })
+    store.push(second)
+    expect(store.latest()).toBe(second)
   })
 
   it('should return undefined for latest when empty', () => {
@@ -57,21 +67,47 @@ describe('createHistoryStore', () => {
 
   it('should cap at maxEntries and drop oldest', () => {
     const store = createHistoryStore(3)
-    store.push(makeEntry('a'))
-    store.push(makeEntry('b'))
-    store.push(makeEntry('c'))
-    store.push(makeEntry('d'))
+    store.push(makeEntry({ turns: [makeTurn({ userMessage: 'a' })] }))
+    store.push(makeEntry({ turns: [makeTurn({ userMessage: 'b' })] }))
+    store.push(makeEntry({ turns: [makeTurn({ userMessage: 'c' })] }))
+    store.push(makeEntry({ turns: [makeTurn({ userMessage: 'd' })] }))
     expect(store.size()).toBe(3)
-    expect(store.get(0)?.prompt).toBe('b')
-    expect(store.get(2)?.prompt).toBe('d')
+    expect(store.get(0)!.turns[0].userMessage).toBe('b')
+    expect(store.get(2)!.turns[0].userMessage).toBe('d')
   })
 
   it('should clear all entries', () => {
     const store = createHistoryStore()
-    store.push(makeEntry('a'))
-    store.push(makeEntry('b'))
+    store.push(makeEntry())
+    store.push(makeEntry())
     store.clear()
     expect(store.size()).toBe(0)
     expect(store.getAll()).toEqual([])
+  })
+
+  it('updateLatest replaces the last entry', () => {
+    const store = createHistoryStore()
+    const entry1 = makeEntry({ turns: [makeTurn({ userMessage: 'q1' })] })
+    store.push(entry1)
+
+    const updated = { ...entry1, turns: [...entry1.turns, makeTurn({ userMessage: 'q2' })] }
+    store.updateLatest(updated)
+
+    expect(store.size()).toBe(1)
+    expect(store.get(0)!.turns).toHaveLength(2)
+    expect(store.get(0)!.turns[1].userMessage).toBe('q2')
+  })
+
+  it('updateLatest throws when store is empty', () => {
+    const store = createHistoryStore()
+    expect(() => store.updateLatest(makeEntry())).toThrow()
+  })
+
+  it('updateLatest does not increase size', () => {
+    const store = createHistoryStore()
+    store.push(makeEntry())
+    store.push(makeEntry())
+    store.updateLatest(makeEntry({ turns: [makeTurn(), makeTurn()] }))
+    expect(store.size()).toBe(2)
   })
 })

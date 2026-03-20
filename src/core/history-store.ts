@@ -2,6 +2,7 @@ import type { HistoryEntry } from './types'
 
 export interface HistoryStore {
   push(entry: HistoryEntry): void
+  updateLatest(entry: HistoryEntry): void
   get(index: number): HistoryEntry | undefined
   latest(): HistoryEntry | undefined
   getAll(): readonly HistoryEntry[]
@@ -18,6 +19,11 @@ export function createHistoryStore(maxEntries = DEFAULT_MAX_ENTRIES): HistorySto
     push(entry) {
       const next = [...entries, entry]
       entries = next.length > maxEntries ? next.slice(next.length - maxEntries) : next
+    },
+
+    updateLatest(entry) {
+      if (entries.length === 0) throw new Error('No entries to update')
+      entries = [...entries.slice(0, -1), entry]
     },
 
     get(index) {
