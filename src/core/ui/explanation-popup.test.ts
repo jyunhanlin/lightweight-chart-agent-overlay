@@ -265,6 +265,14 @@ describe('ExplanationPopup', () => {
   // --- Streaming mode ---
 
   describe('Streaming mode', () => {
+    beforeEach(() => {
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
+      })
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    })
+
     it('showStreaming() creates popup with empty content and cursor', () => {
       const popup = new ExplanationPopup(container)
       popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })

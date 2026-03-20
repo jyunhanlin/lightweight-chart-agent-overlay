@@ -255,6 +255,8 @@ export class ExplanationPopup {
   // Streaming state
   private isStreaming = false
   private streamTextEl: HTMLElement | null = null
+  private pendingStreamText: string | null = null
+  private streamRafId: number | null = null
 
   onClose: (() => void) | null = null
   onNavigate: ((direction: -1 | 1) => void) | null = null
@@ -337,8 +339,7 @@ export class ExplanationPopup {
   showStreaming(ctx: StreamingContext): void {
     // Remove existing popup directly — do NOT call hide() to avoid triggering onClose
     this.removeWrapperDirectly()
-    this.isStreaming = false
-    this.streamTextEl = null
+    this.cleanupStreamState()
 
     this.isStreaming = true
 
@@ -411,15 +412,22 @@ export class ExplanationPopup {
 
   setStreamText(text: string): void {
     if (!this.isStreaming || !this.streamTextEl) return
-    this.streamTextEl.innerHTML = renderMarkdown(text)
-    if (this.wrapper) {
-      this.wrapper.scrollTop = this.wrapper.scrollHeight
+    this.pendingStreamText = text
+    if (this.streamRafId === null) {
+      this.streamRafId = requestAnimationFrame(() => {
+        this.streamRafId = null
+        if (!this.streamTextEl || this.pendingStreamText === null) return
+        this.streamTextEl.innerHTML = renderMarkdown(this.pendingStreamText)
+        this.pendingStreamText = null
+        if (this.wrapper) {
+          this.wrapper.scrollTop = this.wrapper.scrollHeight
+        }
+      })
     }
   }
 
   finalizeStream(options: ExplanationShowOptions): void {
-    this.isStreaming = false
-    this.streamTextEl = null
+    this.cleanupStreamState()
 
     // Remove streaming popup directly — do NOT trigger onClose
     this.removeWrapperDirectly()
@@ -428,10 +436,18 @@ export class ExplanationPopup {
     this.showInternal(options)
   }
 
-  hide(): void {
-    // Clean up streaming state
+  private cleanupStreamState(): void {
     this.isStreaming = false
     this.streamTextEl = null
+    this.pendingStreamText = null
+    if (this.streamRafId !== null) {
+      cancelAnimationFrame(this.streamRafId)
+      this.streamRafId = null
+    }
+  }
+
+  hide(): void {
+    this.cleanupStreamState()
 
     this.cleanupDrag?.()
     this.cleanupDrag = null
