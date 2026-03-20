@@ -97,8 +97,11 @@ export function calculateSmartPosition(ctx: PositionContext): UIPosition {
 /**
  * Adjust an absolutely-positioned element so it stays within the viewport.
  * Call after the element is appended to the DOM.
+ *
+ * @param assumeMaxHeight When true, clamp using the element's max-height
+ *   instead of current height. Useful for streaming popups that will grow.
  */
-export function clampToViewport(element: HTMLElement): void {
+export function clampToViewport(element: HTMLElement, assumeMaxHeight = false): void {
   const rect = element.getBoundingClientRect()
   // Skip if layout hasn't been computed (e.g., JSDOM)
   if (rect.width === 0 && rect.height === 0) return
@@ -106,19 +109,26 @@ export function clampToViewport(element: HTMLElement): void {
   const vw = window.innerWidth
   const vh = window.innerHeight
 
+  // Use max-height for bottom clamping if requested (prevents jumping as content grows)
+  let effectiveBottom = rect.bottom
+  if (assumeMaxHeight) {
+    const maxHeight = parseFloat(getComputedStyle(element).maxHeight) || rect.height
+    effectiveBottom = rect.top + maxHeight
+  }
+
   let adjustLeft = 0
   let adjustTop = 0
 
   if (rect.right > vw - UI_PADDING) {
     adjustLeft = vw - UI_PADDING - rect.right
   }
-  if (rect.bottom > vh - UI_PADDING) {
-    adjustTop = vh - UI_PADDING - rect.bottom
+  if (effectiveBottom > vh - UI_PADDING) {
+    adjustTop = vh - UI_PADDING - effectiveBottom
   }
   if (rect.left < UI_PADDING) {
     adjustLeft = UI_PADDING - rect.left
   }
-  if (rect.top < UI_PADDING) {
+  if (rect.top + adjustTop < UI_PADDING) {
     adjustTop = UI_PADDING - rect.top
   }
 

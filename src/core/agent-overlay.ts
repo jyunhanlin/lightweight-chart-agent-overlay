@@ -148,8 +148,9 @@ export function createAgentOverlay(
       }
 
       let result: NormalizedAnalysisResult
-      // Capture position before hiding prompt input (used by both paths)
+      // Capture values before hiding prompt input (hide may clear state)
       const position = promptInput.getLastPosition() ?? undefined
+      const selectedModel = promptInput.getSelectedModel()
 
       if (options.provider.analyzeStream) {
         // ── Streaming path ──────────────────────────────────
@@ -173,7 +174,7 @@ export function createAgentOverlay(
               position,
               prompt,
               isQuickRun,
-              model: promptInput.getSelectedModel(),
+              model: selectedModel,
               presets: analysisPresets,
             })
             promptInput.hide()
@@ -209,7 +210,7 @@ export function createAgentOverlay(
       const entry = {
         prompt,
         isQuickRun,
-        model: promptInput.getSelectedModel(),
+        model: selectedModel,
         presets: analysisPresets,
         result,
         range: currentRange,

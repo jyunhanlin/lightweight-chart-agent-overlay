@@ -411,7 +411,7 @@ export class ExplanationPopup {
     this.wrapper = wrapper
     document.addEventListener('keydown', this.handleEscape)
 
-    clampToViewport(wrapper)
+    clampToViewport(wrapper, true) // Use max-height for clamp (popup will grow during streaming)
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
   }
 
