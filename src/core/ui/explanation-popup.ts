@@ -72,6 +72,7 @@ function buildNavBar(
   onPrev: () => void,
   onNext: () => void,
   onClose: () => void,
+  onToggleCollapse?: () => void,
 ): HTMLElement {
   const nav = document.createElement('div')
   nav.setAttribute('data-agent-overlay-nav', '')
@@ -112,17 +113,33 @@ function buildNavBar(
   navLeft.appendChild(counter)
   navLeft.appendChild(nextBtn)
 
+  const navRight = document.createElement('div')
+  navRight.style.cssText = 'display: flex; align-items: center; gap: 2px; margin-left: auto;'
+
+  if (onToggleCollapse) {
+    const collapseBtn = document.createElement('button')
+    collapseBtn.setAttribute('data-agent-overlay-collapse', '')
+    collapseBtn.textContent = '\u2500' // ─
+    collapseBtn.style.cssText = `
+      background: none; border: none; color: var(--ao-close); cursor: pointer;
+      font-size: 14px; line-height: 1; padding: 0 4px;
+    `
+    collapseBtn.addEventListener('click', onToggleCollapse)
+    navRight.appendChild(collapseBtn)
+  }
+
   const closeBtn = document.createElement('button')
   closeBtn.setAttribute('data-agent-overlay-close', '')
   closeBtn.textContent = '\u00d7'
   closeBtn.style.cssText = `
     background: none; border: none; color: var(--ao-close); cursor: pointer;
-    font-size: 16px; line-height: 1; padding: 0 4px; margin-left: auto;
+    font-size: 16px; line-height: 1; padding: 0 4px;
   `
   closeBtn.addEventListener('click', onClose)
+  navRight.appendChild(closeBtn)
 
   nav.appendChild(navLeft)
-  nav.appendChild(closeBtn)
+  nav.appendChild(navRight)
 
   return nav
 }
@@ -258,6 +275,10 @@ export class ExplanationPopup {
   private pendingStreamText: string | null = null
   private streamRafId: number | null = null
 
+  // Collapse state
+  private contentEl: HTMLElement | null = null
+  private collapsed = false
+
   onClose: (() => void) | null = null
   onNavigate: ((direction: -1 | 1) => void) | null = null
   onAbort: (() => void) | null = null
@@ -285,14 +306,33 @@ export class ExplanationPopup {
     }
   }
 
+  private toggleCollapse(): void {
+    if (!this.contentEl || !this.wrapper) return
+    this.collapsed = !this.collapsed
+    this.contentEl.style.display = this.collapsed ? 'none' : ''
+    // Update collapse button icon
+    const btn = this.wrapper.querySelector('[data-agent-overlay-collapse]')
+    if (btn) btn.textContent = this.collapsed ? '\u25a1' : '\u2500' // ▢ or ─
+    // Remove max-height and overflow when collapsed so wrapper shrinks to header
+    if (this.collapsed) {
+      this.wrapper.style.maxHeight = 'none'
+      this.wrapper.style.overflowY = 'visible'
+    } else {
+      this.wrapper.style.maxHeight = `min(400px, calc(100vh - ${UI_PADDING * 2}px))`
+      this.wrapper.style.overflowY = 'auto'
+    }
+  }
+
   private showInternal(options: ExplanationShowOptions): void {
     const { entry, currentIndex, totalCount, position } = options
 
     const wrapper = buildWrapperBase(position)
+    this.collapsed = false
 
     const handleClose = () => this.hide()
     const handlePrev = () => this.onNavigate?.(-1)
     const handleNext = () => this.onNavigate?.(1)
+    const handleCollapse = () => this.toggleCollapse()
 
     // ── Sticky header: nav + prompt context + tags ──────────────────────
     const stickyHeader = document.createElement('div')
@@ -302,7 +342,7 @@ export class ExplanationPopup {
     `
 
     stickyHeader.appendChild(
-      buildNavBar(currentIndex, totalCount, handlePrev, handleNext, handleClose),
+      buildNavBar(currentIndex, totalCount, handlePrev, handleNext, handleClose, handleCollapse),
     )
 
     if (entry.isQuickRun) {
@@ -317,7 +357,9 @@ export class ExplanationPopup {
 
     // ── Scrollable content (rendered markdown) ────────────────────────
     injectMarkdownStyles()
-    wrapper.appendChild(buildMarkdownContent(entry))
+    const content = buildMarkdownContent(entry)
+    wrapper.appendChild(content)
+    this.contentEl = content
 
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     this.container.appendChild(wrapper)
@@ -448,6 +490,8 @@ export class ExplanationPopup {
 
   hide(): void {
     this.cleanupStreamState()
+    this.contentEl = null
+    this.collapsed = false
 
     this.cleanupDrag?.()
     this.cleanupDrag = null
