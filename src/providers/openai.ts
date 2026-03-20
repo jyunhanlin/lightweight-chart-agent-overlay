@@ -17,6 +17,7 @@ interface OpenAIProviderOptions {
   readonly apiKey?: string
   readonly systemPrompt?: string
   readonly baseURL?: string
+  readonly maxTokens?: number
   readonly availableModels: readonly ModelOption[]
 }
 
@@ -28,6 +29,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
   const model = options.availableModels[0].id
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
   const baseURL = options.baseURL ?? API_URL
+  const maxTokens = options.maxTokens ?? 8192
 
   return {
     availableModels: options.availableModels,
@@ -61,7 +63,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
             { role: 'system', content: finalSystemPrompt },
             { role: 'user', content: userMessage },
           ],
-          max_tokens: 4096,
+          max_tokens: maxTokens,
         }),
         signal,
       })
@@ -111,7 +113,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
             { role: 'system', content: finalSystemPrompt },
             { role: 'user', content: userMessage },
           ],
-          max_tokens: 4096,
+          max_tokens: maxTokens,
           stream: true,
         }),
         signal,

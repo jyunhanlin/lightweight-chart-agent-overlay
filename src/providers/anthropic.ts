@@ -16,6 +16,7 @@ const API_URL = 'https://api.anthropic.com/v1/messages'
 interface AnthropicProviderOptions {
   readonly apiKey?: string
   readonly systemPrompt?: string
+  readonly maxTokens?: number
   readonly availableModels: readonly ModelOption[]
 }
 
@@ -26,6 +27,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
   const constructorApiKey = options.apiKey
   const model = options.availableModels[0].id
   const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
+  const maxTokens = options.maxTokens ?? 8192
 
   return {
     availableModels: options.availableModels,
@@ -58,7 +60,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
         },
         body: JSON.stringify({
           model: requestModel,
-          max_tokens: 4096,
+          max_tokens: maxTokens,
           system: finalSystemPrompt,
           messages: [{ role: 'user', content: userMessage }],
         }),
@@ -108,7 +110,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
         },
         body: JSON.stringify({
           model: requestModel,
-          max_tokens: 4096,
+          max_tokens: maxTokens,
           system: finalSystemPrompt,
           messages: [{ role: 'user', content: userMessage }],
           stream: true,
