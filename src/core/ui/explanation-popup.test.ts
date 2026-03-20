@@ -264,4 +264,102 @@ describe('ExplanationPopup', () => {
     const el = container.querySelector('[data-agent-overlay-explanation]') as HTMLElement
     expect(el.style.left).toBe('42px')
   })
+
+  // --- Streaming mode ---
+
+  describe('Streaming mode', () => {
+    beforeEach(() => {
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
+      })
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    })
+
+    it('showStreaming() creates popup with empty content and cursor', () => {
+      const popup = new ExplanationPopup(container)
+      popup.showStreaming()
+      const el = container.querySelector('[data-agent-overlay-explanation]')
+      expect(el).not.toBeNull()
+      const streamText = el!.querySelector('[data-agent-overlay-stream-text]')
+      const cursor = el!.querySelector('[data-agent-overlay-stream-cursor]')
+      expect(streamText).not.toBeNull()
+      expect(cursor).not.toBeNull()
+      expect(streamText!.textContent).toBe('')
+      expect(cursor!.textContent).toBe('▌')
+    })
+
+    it('showStreaming() does NOT trigger onClose when replacing existing popup', () => {
+      const popup = new ExplanationPopup(container)
+      const onClose = vi.fn()
+      popup.onClose = onClose
+      popup.show({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
+      popup.showStreaming()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('appendStreamText() adds text to the stream area', () => {
+      const popup = new ExplanationPopup(container)
+      popup.showStreaming()
+      popup.appendStreamText('Hello ')
+      popup.appendStreamText('world')
+      const el = container.querySelector('[data-agent-overlay-explanation]')!
+      const streamText = el.querySelector('[data-agent-overlay-stream-text]')!
+      expect(streamText.textContent).toContain('Hello world')
+    })
+
+    it('close button during streaming fires onAbort', () => {
+      const popup = new ExplanationPopup(container)
+      const onAbort = vi.fn()
+      const onClose = vi.fn()
+      popup.onAbort = onAbort
+      popup.onClose = onClose
+      popup.showStreaming()
+      const closeBtn = container.querySelector('[data-agent-overlay-close]') as HTMLButtonElement
+      closeBtn.click()
+      expect(onAbort).toHaveBeenCalledTimes(1)
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('Escape during streaming fires onAbort', () => {
+      const popup = new ExplanationPopup(container)
+      const onAbort = vi.fn()
+      const onClose = vi.fn()
+      popup.onAbort = onAbort
+      popup.onClose = onClose
+      popup.showStreaming()
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      expect(onAbort).toHaveBeenCalledTimes(1)
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('history nav is hidden during streaming', () => {
+      const popup = new ExplanationPopup(container)
+      popup.showStreaming()
+      const nav = container.querySelector('[data-agent-overlay-nav]') as HTMLElement
+      expect(nav).not.toBeNull()
+      const navLeft = nav.firstElementChild as HTMLElement
+      expect(navLeft.style.visibility).toBe('hidden')
+    })
+
+    it('finalizeStream() transitions to structured view', () => {
+      const popup = new ExplanationPopup(container)
+      popup.showStreaming()
+      popup.appendStreamText('some streaming text')
+      popup.finalizeStream({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
+      const el = container.querySelector('[data-agent-overlay-explanation]')!
+      expect(el).not.toBeNull()
+      // stream text area gone
+      expect(el.querySelector('[data-agent-overlay-stream-text]')).toBeNull()
+      // structured sections present
+      expect(el.querySelectorAll('[data-agent-overlay-section-label]').length).toBeGreaterThan(0)
+    })
+
+    it('hide() cleans up streaming popup', () => {
+      const popup = new ExplanationPopup(container)
+      popup.showStreaming()
+      popup.hide()
+      expect(container.querySelector('[data-agent-overlay-explanation]')).toBeNull()
+    })
+  })
 })

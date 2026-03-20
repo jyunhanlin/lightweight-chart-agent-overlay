@@ -191,40 +191,83 @@ function buildSections(entry: HistoryEntry): HTMLElement {
   return container
 }
 
+function injectBlinkAnimation(): void {
+  const styleId = 'ao-blink-style'
+  if (document.getElementById(styleId)) return
+  const style = document.createElement('style')
+  style.id = styleId
+  style.textContent = `
+    @keyframes ao-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    [data-agent-overlay-stream-cursor] {
+      animation: ao-blink 1s step-end infinite;
+    }
+  `
+  document.head.appendChild(style)
+}
+
+function buildWrapperBase(position?: UIPosition): HTMLElement {
+  const posLeft = position?.left ?? 0
+  const posTop = position ? position.top + ESTIMATED_UI_HEIGHT : 0
+
+  const wrapper = document.createElement('div')
+  wrapper.setAttribute('data-agent-overlay-explanation', '')
+  wrapper.style.cssText = `
+    position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
+    border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
+    overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    color: var(--ao-text); font-size: 13px; cursor: grab;
+  `
+  wrapper.style.left = `${posLeft}px`
+  wrapper.style.top = `${posTop}px`
+  return wrapper
+}
+
 export class ExplanationPopup {
   private readonly container: HTMLElement
   private wrapper: HTMLElement | null = null
   private cleanupDrag: (() => void) | null = null
   private readonly handleEscape: (e: KeyboardEvent) => void
 
+  // Streaming state
+  private isStreaming = false
+  private streamTextEl: HTMLElement | null = null
+  private pendingText = ''
+  private rafId: number | null = null
+
   onClose: (() => void) | null = null
   onNavigate: ((direction: -1 | 1) => void) | null = null
+  onAbort: (() => void) | null = null
 
   constructor(container: HTMLElement) {
     this.container = container
     this.handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.hide()
+      if (e.key === 'Escape') {
+        if (this.isStreaming) {
+          this.onAbort?.()
+        } else {
+          this.hide()
+        }
+      }
     }
   }
 
-  show(options: ExplanationShowOptions): void {
-    this.hide()
+  private removeWrapperDirectly(): void {
+    this.cleanupDrag?.()
+    this.cleanupDrag = null
+    if (this.wrapper) {
+      this.wrapper.remove()
+      this.wrapper = null
+      document.removeEventListener('keydown', this.handleEscape)
+    }
+  }
 
+  private showInternal(options: ExplanationShowOptions): void {
     const { entry, currentIndex, totalCount, position } = options
 
-    const posLeft = position?.left ?? 0
-    const posTop = position ? position.top + ESTIMATED_UI_HEIGHT : 0
-
-    const wrapper = document.createElement('div')
-    wrapper.setAttribute('data-agent-overlay-explanation', '')
-    wrapper.style.cssText = `
-      position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
-      border-radius: 6px; max-width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
-      overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      color: var(--ao-text); font-size: 13px; cursor: grab;
-    `
-    wrapper.style.left = `${posLeft}px`
-    wrapper.style.top = `${posTop}px`
+    const wrapper = buildWrapperBase(position)
 
     const handleClose = () => this.hide()
     const handlePrev = () => this.onNavigate?.(-1)
@@ -266,7 +309,119 @@ export class ExplanationPopup {
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
   }
 
+  show(options: ExplanationShowOptions): void {
+    this.hide()
+    this.showInternal(options)
+  }
+
+  showStreaming(position?: UIPosition): void {
+    // Remove existing popup directly — do NOT call hide() to avoid triggering onClose
+    this.removeWrapperDirectly()
+    // Also clear any streaming state from a prior session
+    this.isStreaming = false
+    this.streamTextEl = null
+    this.pendingText = ''
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
+    }
+
+    this.isStreaming = true
+
+    const wrapper = buildWrapperBase(position)
+
+    const handleAbort = () => this.onAbort?.()
+
+    // Nav bar with totalCount=1 so history nav is hidden
+    wrapper.appendChild(
+      buildNavBar(
+        0,
+        1,
+        () => {},
+        () => {},
+        handleAbort,
+      ),
+    )
+
+    // Stream text area
+    const streamText = document.createElement('div')
+    streamText.setAttribute('data-agent-overlay-stream-text', '')
+    streamText.style.cssText =
+      'padding: 8px 12px; font-size: 13px; color: var(--ao-text); line-height: 1.5; white-space: pre-wrap; word-break: break-word;'
+    this.streamTextEl = streamText
+
+    // Blinking cursor
+    const cursor = document.createElement('span')
+    cursor.setAttribute('data-agent-overlay-stream-cursor', '')
+    cursor.textContent = '▌'
+
+    wrapper.appendChild(streamText)
+    wrapper.appendChild(cursor)
+
+    injectBlinkAnimation()
+
+    wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
+    this.container.appendChild(wrapper)
+    this.wrapper = wrapper
+    document.addEventListener('keydown', this.handleEscape)
+
+    clampToViewport(wrapper)
+    this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
+  }
+
+  appendStreamText(chunk: string): void {
+    if (!this.isStreaming || !this.streamTextEl) return
+
+    this.pendingText += chunk
+
+    if (this.rafId === null) {
+      // Mark as scheduled with a sentinel before calling requestAnimationFrame,
+      // because the stub in tests may invoke the callback synchronously (before
+      // the return value is assigned).
+      this.rafId = -1
+      const id = requestAnimationFrame(() => {
+        this.rafId = null
+        if (!this.streamTextEl) return
+        this.streamTextEl.textContent = (this.streamTextEl.textContent ?? '') + this.pendingText
+        this.pendingText = ''
+        // Auto-scroll wrapper
+        if (this.wrapper) {
+          this.wrapper.scrollTop = this.wrapper.scrollHeight
+        }
+      })
+      // Only overwrite sentinel if callback hasn't already cleared it
+      if (this.rafId === -1) {
+        this.rafId = id
+      }
+    }
+  }
+
+  finalizeStream(options: ExplanationShowOptions): void {
+    this.isStreaming = false
+    this.streamTextEl = null
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
+    }
+    this.pendingText = ''
+
+    // Remove streaming popup directly — do NOT trigger onClose
+    this.removeWrapperDirectly()
+
+    // Show structured view
+    this.showInternal(options)
+  }
+
   hide(): void {
+    // Clean up streaming state
+    this.isStreaming = false
+    this.streamTextEl = null
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
+    }
+    this.pendingText = ''
+
     this.cleanupDrag?.()
     this.cleanupDrag = null
     if (this.wrapper) {
@@ -280,6 +435,7 @@ export class ExplanationPopup {
   destroy(): void {
     this.onClose = null
     this.onNavigate = null
+    this.onAbort = null
     this.hide()
   }
 }
