@@ -5,8 +5,10 @@ import type {
   AgentOverlayEventMap,
   AgentOverlayOptions,
   AnalyzeOptions,
-  AnalysisPreset,
   ChartContext,
+  ChatMessage,
+  ChatTurn,
+  HistoryEntry,
   LLMProvider,
   NormalizedAnalysisResult,
   TimeValue,
@@ -17,8 +19,7 @@ import { defaultPromptBuilder } from './prompt-builder'
 import { RangeSelector } from './selection/range-selector'
 import { buildChartContext } from './selection/context-builder'
 import { OverlayRenderer } from './overlay/overlay-renderer'
-import { PromptInput } from './ui/prompt-input'
-import { ExplanationPopup } from './ui/explanation-popup'
+import { ChatPanel } from './ui/chat-panel'
 import { calculateSmartPosition } from './ui/calculate-position'
 import { applyThemeVars } from './ui/theme'
 import { DEFAULT_PRESETS } from './default-presets'
@@ -77,16 +78,17 @@ export function createAgentOverlay(
   const historyButton = new HistoryButton(chartEl)
   historyButton.setCount(0)
 
-  const promptInput = new PromptInput(chartEl, {
+  const chatPanel = new ChatPanel(chartEl, {
     availableModels: options.provider.availableModels,
     presets,
     requiresApiKey: options.provider.requiresApiKey,
     apiKeyStorageKey: options.apiKeyStorageKey,
   })
-  const explanationPopup = new ExplanationPopup(chartEl)
 
   let abortController: AbortController | null = null
   let currentHistoryIndex = -1
+  let currentTurns: ChatTurn[] = []
+  let currentRange: { from: TimeValue; to: TimeValue } | null = null
 
   // ── Core logic ─────────────────────────────────────────────────────────────
 
@@ -105,97 +107,100 @@ export function createAgentOverlay(
     abortController = null
   }
 
-  function buildAnalysisContext() {
-    const seriesData = series.data() as never[]
-    const currentRange = rangeSelector.getRange()
-    if (!currentRange) throw new Error('No selection range available')
-    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
-    return { context, currentRange }
+  function buildChatMessages(
+    context: ChartContext,
+    turns: readonly ChatTurn[],
+    currentUserMessage: string,
+  ): ChatMessage[] {
+    const messages: ChatMessage[] = []
+    for (let i = 0; i < turns.length; i++) {
+      const turn = turns[i]
+      if (i === 0) {
+        messages.push({
+          role: 'user',
+          content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${turn.userMessage}`,
+        })
+      } else {
+        messages.push({ role: 'user', content: turn.userMessage })
+      }
+      messages.push({ role: 'assistant', content: turn.rawResponse })
+    }
+    // Current question
+    if (turns.length === 0) {
+      messages.push({
+        role: 'user',
+        content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${currentUserMessage}`,
+      })
+    } else {
+      messages.push({ role: 'user', content: currentUserMessage })
+    }
+    return messages
   }
 
   async function runAnalysis(
     context: ChartContext,
-    prompt: string,
+    userMessage: string,
     additionalSystemPrompt: string | undefined,
-    isQuickRun: boolean,
-    analysisPresets: readonly AnalysisPreset[],
-    currentRange: { readonly from: TimeValue; readonly to: TimeValue },
   ): Promise<void> {
     const storageKey = options.apiKeyStorageKey ?? 'agent-overlay-api-key'
     const storedApiKey = options.provider.requiresApiKey
       ? (localStorage.getItem(storageKey) ?? undefined)
       : undefined
 
-    // Check if key is required but missing
     if (options.provider.requiresApiKey && !storedApiKey) {
-      promptInput.openSettings('Please enter your API key to continue.')
+      chatPanel.openSettings('Please enter your API key to continue.')
       return
     }
 
-    promptInput.setLoading(true)
+    chatPanel.setLoading(true)
     emitter.emit('analyze-start')
     abortController = new AbortController()
     const { signal } = abortController
 
     try {
       const resolvedHeaders = await resolveHeaders(options.provider)
+      const selectedModel = chatPanel.getSelectedModel()
+      const selectedPresets = chatPanel.getSelectedPresets()
+      const chatMessages = buildChatMessages(context, currentTurns, userMessage)
 
       const analyzeOptions: AnalyzeOptions = {
-        model: promptInput.getSelectedModel(),
+        model: selectedModel,
         additionalSystemPrompt: additionalSystemPrompt || undefined,
         apiKey: storedApiKey,
         headers: resolvedHeaders,
+        chatMessages,
       }
 
+      let rawResponse = ''
       let result: NormalizedAnalysisResult
-      // Capture values before hiding prompt input (hide may clear state)
-      const position = promptInput.getLastPosition() ?? undefined
-      const selectedModel = promptInput.getSelectedModel()
 
       if (options.provider.analyzeStream) {
         // ── Streaming path ──────────────────────────────────
-        // Keep loading bar visible until first chunk arrives
+        chatPanel.startStreaming(userMessage, selectedModel, selectedPresets)
 
-        let fullText = ''
-        let streamingStarted = false
-
+        // eslint-disable-next-line no-await-in-loop
         for await (const chunk of options.provider.analyzeStream(
           context,
-          prompt,
+          userMessage,
           signal,
           analyzeOptions,
         )) {
-          fullText += chunk
+          rawResponse += chunk
 
-          // On first chunk: switch from loading bar to streaming popup
-          if (!streamingStarted) {
-            streamingStarted = true
-            explanationPopup.showStreaming({
-              position,
-              prompt,
-              isQuickRun,
-              model: selectedModel,
-              presets: analysisPresets,
-            })
-            promptInput.hide()
-          }
-
-          // Display only text before the JSON fence; trim partial backticks
-          const fenceIdx = fullText.indexOf('```json')
+          const fenceIdx = rawResponse.indexOf('```json')
           let safeEnd: number
           if (fenceIdx !== -1) {
             safeEnd = fenceIdx
           } else {
-            safeEnd = fullText.length
-            // Trim trailing backticks that might be the start of a fence
-            if (fullText.endsWith('```')) safeEnd -= 3
-            else if (fullText.endsWith('``')) safeEnd -= 2
-            else if (fullText.endsWith('`')) safeEnd -= 1
+            safeEnd = rawResponse.length
+            if (rawResponse.endsWith('```')) safeEnd -= 3
+            else if (rawResponse.endsWith('``')) safeEnd -= 2
+            else if (rawResponse.endsWith('`')) safeEnd -= 1
           }
-          explanationPopup.setStreamText(fullText.slice(0, safeEnd).trimEnd())
+          chatPanel.setStreamText(rawResponse.slice(0, safeEnd).trimEnd())
         }
 
-        const parsed = parseStreamedResponse(fullText)
+        const parsed = parseStreamedResponse(rawResponse)
         result = validateResult({
           explanation: parsed.explanation || undefined,
           priceLines: parsed.overlays.priceLines,
@@ -203,50 +208,49 @@ export function createAgentOverlay(
         })
       } else {
         // ── Fallback path (non-streaming) ───────────────────
-        const rawResult = await options.provider.analyze(context, prompt, signal, analyzeOptions)
+        const rawResult = await options.provider.analyze(
+          context,
+          userMessage,
+          signal,
+          analyzeOptions,
+        )
         result = validateResult(rawResult)
       }
 
-      const entry = {
-        prompt,
-        isQuickRun,
-        model: selectedModel,
-        presets: analysisPresets,
+      const turn: ChatTurn = {
+        userMessage,
+        rawResponse,
         result,
-        range: currentRange,
+        model: selectedModel,
+        presets: [...selectedPresets],
       }
 
-      historyStore.push(entry)
+      currentTurns = [...currentTurns, turn]
+
+      if (options.provider.analyzeStream) {
+        chatPanel.finalizeTurn(turn)
+      } else {
+        chatPanel.addTurn(turn)
+      }
+
+      // Update overlays
+      renderer.clear()
+      renderer.render(result)
+      chatPanel.setActiveTurn(currentTurns.length - 1)
+
+      // Update history
+      const entry: HistoryEntry = {
+        turns: currentTurns,
+        range: currentRange!,
+      }
+      if (currentTurns.length === 1) {
+        historyStore.push(entry)
+      } else {
+        historyStore.updateLatest(entry)
+      }
       historyButton.setCount(historyStore.size())
       currentHistoryIndex = historyStore.size() - 1
 
-      if (options.provider.analyzeStream) {
-        // Finalize streaming popup → structured view
-        // Use the position captured before promptInput.hide()
-        explanationPopup.finalizeStream({
-          entry,
-          currentIndex: currentHistoryIndex,
-          totalCount: historyStore.size(),
-          position,
-        })
-      } else {
-        // Non-streaming: show popup
-        // Show popup BEFORE rendering overlays — show() calls hide() which
-        // triggers onClose → renderer.clear(). Rendering after ensures
-        // the new overlays are not immediately cleared.
-        if (result.explanation) {
-          explanationPopup.show({
-            entry,
-            currentIndex: currentHistoryIndex,
-            totalCount: historyStore.size(),
-            position,
-          })
-        }
-        promptInput.hide()
-      }
-
-      renderer.clear()
-      renderer.render(result)
       emitter.emit('analyze-complete', result)
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -254,19 +258,15 @@ export function createAgentOverlay(
         const isAuthError = /\b(401|403)\b/.test(message)
 
         if (isAuthError && options.provider.requiresApiKey) {
-          promptInput.setLoading(false)
-          promptInput.openSettings('Invalid API key. Please check your key in Settings.')
+          chatPanel.openSettings('Invalid API key. Please check your key in Settings.')
         } else {
-          promptInput.setLoading(false)
-          promptInput.showError(message)
+          chatPanel.showError(message)
         }
         emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
       }
-      // On abort or error, clean up any streaming popup
-      explanationPopup.hide()
     } finally {
       abortController = null
-      promptInput.setLoading(false)
+      chatPanel.setLoading(false)
     }
   }
 
@@ -275,15 +275,26 @@ export function createAgentOverlay(
     if (!entry) return
 
     currentHistoryIndex = index
+    currentTurns = [...entry.turns]
+    currentRange = entry.range
 
-    explanationPopup.show({
-      entry,
+    chatPanel.show({
+      position: getSmartPosition(entry.range),
       currentIndex: index,
       totalCount: historyStore.size(),
-      position: getSmartPosition(entry.range),
     })
 
-    renderer.render(entry.result)
+    for (const turn of entry.turns) {
+      chatPanel.addTurn(turn)
+    }
+
+    const lastTurn = entry.turns[entry.turns.length - 1]
+    if (lastTurn) {
+      renderer.clear()
+      renderer.render(lastTurn.result)
+      chatPanel.setActiveTurn(entry.turns.length - 1)
+    }
+
     rangeSelector.setRange(entry.range as { from: never; to: never })
   }
 
@@ -291,68 +302,68 @@ export function createAgentOverlay(
 
   rangeSelector.onSelect = (range) => {
     cancelInFlight()
-    promptInput.hide()
-    explanationPopup.hide()
-    promptInput.show(getSmartPosition(range))
+    // Reset multi-turn state for new selection
+    currentTurns = []
+    currentRange = range
+
+    // show() internally tears down any existing panel without triggering onClose
+    const position = getSmartPosition(range)
+    chatPanel.show({
+      position,
+      currentIndex: historyStore.size(),
+      totalCount: historyStore.size(),
+    })
+    chatPanel.focusInput()
   }
 
   rangeSelector.onDismiss = () => {
     cancelInFlight()
-    promptInput.hide()
-    explanationPopup.hide()
+    chatPanel.hide()
   }
 
-  // ── Event wiring: Prompt ───────────────────────────────────────────────────
+  // ── Event wiring: ChatPanel ────────────────────────────────────────────────
 
-  promptInput.onSubmit = async (userPrompt: string) => {
-    const { context, currentRange } = buildAnalysisContext()
-    const selectedPresets = promptInput.getSelectedPresets()
-    const { prompt, additionalSystemPrompt } = promptBuilder.build({
-      userPrompt,
+  chatPanel.onSubmit = async (userMessage: string) => {
+    if (!currentRange) return
+    const seriesData = series.data() as never[]
+    const context = buildChartContext(seriesData, currentRange as never, options.dataAccessor)
+    const selectedPresets = chatPanel.getSelectedPresets()
+    const { additionalSystemPrompt } = promptBuilder.build({
+      userPrompt: userMessage,
       selectedPresets,
       isQuickRun: false,
     })
-    await runAnalysis(context, prompt, additionalSystemPrompt, false, selectedPresets, currentRange)
+    await runAnalysis(context, userMessage, additionalSystemPrompt || undefined)
   }
 
-  promptInput.onQuickRun = async (runPresets: readonly AnalysisPreset[]) => {
-    const { context, currentRange } = buildAnalysisContext()
-    const { prompt, additionalSystemPrompt } = promptBuilder.build({
-      userPrompt: '',
-      selectedPresets: runPresets,
-      isQuickRun: true,
-    })
-    await runAnalysis(context, prompt, additionalSystemPrompt, true, [...runPresets], currentRange)
+  chatPanel.onTurnClick = (index: number) => {
+    const turn = currentTurns[index]
+    if (!turn) return
+    renderer.clear()
+    renderer.render(turn.result)
+    chatPanel.setActiveTurn(index)
   }
 
-  promptInput.onCancel = () => {
-    cancelInFlight()
-    rangeSelector.clearSelection()
-  }
-
-  // ── Event wiring: History ──────────────────────────────────────────────────
-
-  explanationPopup.onClose = () => {
+  chatPanel.onClose = () => {
     renderer.clear()
     rangeSelector.clearSelection()
+    currentTurns = []
+    currentRange = null
   }
 
-  explanationPopup.onNavigate = (direction: -1 | 1) => {
+  chatPanel.onAbort = () => {
+    cancelInFlight()
+  }
+
+  chatPanel.onNavigate = (direction: -1 | 1) => {
     const targetIndex = currentHistoryIndex + direction
     if (targetIndex >= 0 && targetIndex < historyStore.size()) {
       showHistoryEntry(targetIndex)
     }
   }
 
-  explanationPopup.onAbort = () => {
-    cancelInFlight()
-    explanationPopup.hide()
-    rangeSelector.clearSelection()
-  }
-
   historyButton.onClick = () => {
-    if (chartEl.querySelector('[data-agent-overlay-explanation]')) return
-    promptInput.hide()
+    if (chatPanel.isVisible()) return
     const latestIndex = historyStore.size() - 1
     if (latestIndex >= 0) {
       showHistoryEntry(latestIndex)
@@ -365,8 +376,7 @@ export function createAgentOverlay(
     destroy() {
       cancelInFlight()
       rangeSelector.destroy()
-      promptInput.destroy()
-      explanationPopup.destroy()
+      chatPanel.destroy()
       historyButton.destroy()
       historyStore.clear()
       renderer.clear()
@@ -375,7 +385,7 @@ export function createAgentOverlay(
 
     clearOverlays() {
       renderer.clear()
-      explanationPopup.hide()
+      chatPanel.hide()
     },
 
     setSelectionEnabled(enabled: boolean) {

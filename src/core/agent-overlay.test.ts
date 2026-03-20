@@ -1,6 +1,6 @@
 // src/core/agent-overlay.test.ts
 import { createAgentOverlay } from './agent-overlay'
-import type { LLMProvider, AnalysisResult, PromptBuilder, AnalysisPreset } from './types'
+import type { LLMProvider, AnalysisResult, PromptBuilder } from './types'
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => ({
@@ -59,7 +59,7 @@ function fireDrag(el: HTMLElement, fromX: number, toX: number) {
 }
 
 function getTextarea(el: HTMLElement): HTMLTextAreaElement | null {
-  return el.querySelector('textarea')
+  return el.querySelector('[data-agent-overlay-chat] textarea')
 }
 
 function submitPrompt(el: HTMLElement, text: string) {
@@ -212,10 +212,9 @@ describe('createAgentOverlay', () => {
     selectAndSubmit(agent, el, 'test')
 
     await vi.waitFor(() => {
-      const errorDiv = el.querySelector('[data-agent-overlay-error]') as HTMLElement | null
+      const errorDiv = el.querySelector('[data-chat-error]') as HTMLElement | null
       expect(errorDiv).not.toBeNull()
       expect(errorDiv?.textContent).toBe('API failed')
-      expect(errorDiv?.style.display).toBe('block')
     })
 
     el.remove()
@@ -270,7 +269,7 @@ describe('createAgentOverlay', () => {
         expect(provider.analyze).toHaveBeenCalled()
       })
 
-      // defaultPromptBuilder passes userPrompt through as-is when no presets
+      // In multi-turn mode, the userMessage is passed directly to the provider
       const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
       expect(call[1]).toBe('analyze this')
 
@@ -305,14 +304,14 @@ describe('createAgentOverlay', () => {
         })
       })
 
-      // Provider should receive the custom prompt
+      // Provider receives the raw userMessage (not the builder's prompt)
       const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
-      expect(call[1]).toBe('custom prompt')
+      expect(call[1]).toBe('user text')
 
       el.remove()
     })
 
-    it('provider receives AnalyzeOptions with model and additionalSystemPrompt', async () => {
+    it('provider receives AnalyzeOptions with model, additionalSystemPrompt, and chatMessages', async () => {
       const { chart, el } = createMockChart()
       const series = createMockSeries()
       const provider = createMockProvider({ explanation: 'test result' })
@@ -337,10 +336,13 @@ describe('createAgentOverlay', () => {
 
       // The 4th argument should be AnalyzeOptions
       const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
-      expect(call[3]).toEqual({
-        model: undefined,
-        additionalSystemPrompt: 'system instructions',
-      })
+      expect(call[3]).toEqual(
+        expect.objectContaining({
+          model: undefined,
+          additionalSystemPrompt: 'system instructions',
+          chatMessages: expect.arrayContaining([expect.objectContaining({ role: 'user' })]),
+        }),
+      )
 
       el.remove()
     })
@@ -369,56 +371,12 @@ describe('createAgentOverlay', () => {
       })
 
       const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
-      expect(call[3]).toEqual({
-        model: undefined,
-        additionalSystemPrompt: undefined,
-      })
-
-      el.remove()
-    })
-  })
-
-  describe('onQuickRun', () => {
-    it('triggers the quick run flow via preset dropdown Run button', async () => {
-      const { chart, el } = createMockChart()
-      const series = createMockSeries()
-      const provider = createMockProvider({ explanation: 'quick result' })
-
-      const presets: AnalysisPreset[] = [
-        {
-          label: 'Support/Resistance',
-          systemPrompt: 'Find S/R',
-          quickPrompt: 'Analyze S/R levels',
-        },
-      ]
-
-      const agent = createAgentOverlay(chart as never, series as never, { provider, presets })
-
-      // Need to enable selection and create a range first
-      agent.setSelectionEnabled(true)
-      fireDrag(el, 10, 50)
-
-      // Find and interact with preset dropdown
-      const presetWrapper = el.querySelector('[data-agent-overlay-preset-dropdown]')
-      expect(presetWrapper).not.toBeNull()
-
-      const trigger = presetWrapper?.querySelector('[data-dropdown-trigger]') as HTMLElement
-      expect(trigger).not.toBeNull()
-
-      // First preset is pre-selected by default — just press Cmd+Enter
-      const textarea = el.querySelector('textarea') as HTMLTextAreaElement
-      textarea.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }),
+      expect(call[3]).toEqual(
+        expect.objectContaining({
+          model: undefined,
+          additionalSystemPrompt: undefined,
+        }),
       )
-
-      await vi.waitFor(() => {
-        expect(provider.analyze).toHaveBeenCalled()
-      })
-
-      // Verify the prompt was built with isQuickRun = true
-      const call = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[0]
-      // The prompt should come from the preset's quickPrompt
-      expect(call[1]).toBe('Analyze S/R levels')
 
       el.remove()
     })
@@ -454,7 +412,7 @@ describe('createAgentOverlay', () => {
       el.remove()
     })
 
-    it('updates badge count after multiple analyses', async () => {
+    it('updates badge count after multiple analyses (new selections)', async () => {
       const { chart, el } = createMockChart()
       const series = createMockSeries()
       const provider = createMockProvider({ explanation: 'result' })
@@ -473,7 +431,7 @@ describe('createAgentOverlay', () => {
         expect(badge.textContent).toBe('1')
       })
 
-      // Second analysis — need to re-select range first
+      // Second analysis — new selection starts new chat
       agent.setSelectionEnabled(true)
       fireDrag(el, 10, 50)
       submitPrompt(el, 'second')
@@ -505,7 +463,7 @@ describe('createAgentOverlay', () => {
       el.remove()
     })
 
-    it('closing popup clears overlay but preserves history', async () => {
+    it('closing chat panel clears overlay but preserves history', async () => {
       const { chart, el } = createMockChart()
       const series = createMockSeries()
       const provider = createMockProvider({
@@ -528,8 +486,8 @@ describe('createAgentOverlay', () => {
         expect(badge.textContent).toBe('1')
       })
 
-      // Close the popup via its close button
-      const closeBtn = el.querySelector('[data-agent-overlay-popup] button') as HTMLElement
+      // Close the chat panel via its close button
+      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       if (closeBtn) closeBtn.click()
 
       // History should still show count 1
@@ -721,24 +679,22 @@ describe('createAgentOverlay', () => {
       // Run an analysis to populate history
       selectAndSubmit(agent, el, 'Find support')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // Close the popup (this clears overlays)
+      // Close the chat panel (this clears overlays)
       const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn?.click()
 
-      // Verify popup is gone
-      expect(el.querySelector('[data-agent-overlay-explanation]')).toBeNull()
+      // Verify chat panel is gone
+      expect(el.querySelector('[data-agent-overlay-chat]')).toBeNull()
 
       // Click history button
       const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
       histBtn.click()
 
-      // Popup should reappear with the entry
-      const popup = el.querySelector('[data-agent-overlay-explanation]')
-      expect(popup).not.toBeNull()
+      // Chat panel should reappear with the entry
+      const chatPanel = el.querySelector('[data-agent-overlay-chat]')
+      expect(chatPanel).not.toBeNull()
 
       // Overlay should be rendered (renderer.render was called)
       // The series.createPriceLine proves overlays were re-rendered
@@ -748,44 +704,7 @@ describe('createAgentOverlay', () => {
       el.remove()
     })
 
-    it('history button click when prompt showing hides prompt and shows latest entry', async () => {
-      const { chart, el } = createMockChart()
-      const series = createMockSeries()
-      const provider = createMockProvider({ explanation: 'result' })
-
-      const agent = createAgentOverlay(chart as never, series as never, { provider })
-
-      // Run analysis to populate history
-      selectAndSubmit(agent, el, 'test')
-      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
-
-      // Close popup, then open a new selection to show prompt
-      const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
-      closeBtn?.click()
-
-      agent.setSelectionEnabled(true)
-      fireDrag(el, 10, 50)
-
-      // Prompt should be showing
-      expect(el.querySelector('[data-agent-overlay-prompt]')).not.toBeNull()
-
-      // Click history button
-      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
-      histBtn.click()
-
-      // Prompt should be hidden
-      expect(el.querySelector('[data-agent-overlay-prompt]')).toBeNull()
-
-      // Popup should show
-      expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull()
-
-      el.remove()
-    })
-
-    it('history button click when popup already showing is a no-op', async () => {
+    it('history button click when chat panel already showing is a no-op', async () => {
       const { chart, el } = createMockChart()
       const series = createMockSeries()
       const provider = createMockProvider({
@@ -797,20 +716,18 @@ describe('createAgentOverlay', () => {
 
       selectAndSubmit(agent, el, 'test')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // Popup is already showing — clicking history button should be no-op
+      // Chat panel is already showing — clicking history button should be no-op
       const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
-      const popupBefore = el.querySelector('[data-agent-overlay-explanation]')
+      const panelBefore = el.querySelector('[data-agent-overlay-chat]')
 
       histBtn.click()
 
-      // Popup should still be the same (no-op)
-      const popupAfter = el.querySelector('[data-agent-overlay-explanation]')
-      expect(popupAfter).not.toBeNull()
-      expect(popupAfter).toBe(popupBefore)
+      // Chat panel should still be the same (no-op)
+      const panelAfter = el.querySelector('[data-agent-overlay-chat]')
+      expect(panelAfter).not.toBeNull()
+      expect(panelAfter).toBe(panelBefore)
 
       el.remove()
     })
@@ -837,11 +754,9 @@ describe('createAgentOverlay', () => {
       // First analysis
       selectAndSubmit(agent, el, 'first')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // Close popup
+      // Close chat panel
       const closeBtn1 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn1?.click()
 
@@ -853,12 +768,9 @@ describe('createAgentOverlay', () => {
       fireDrag(el, 20, 60)
       submitPrompt(el, 'second')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // We're at index 1 (latest). Click history button to restore from history
-      // Close popup first, then use history to go back
+      // Close chat panel, then use history to go back
       const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn2?.click()
 
@@ -916,9 +828,7 @@ describe('createAgentOverlay', () => {
       // First analysis
       selectAndSubmit(agent, el, 'alpha prompt')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
       // Close and do second analysis
       const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
@@ -931,9 +841,14 @@ describe('createAgentOverlay', () => {
       fireDrag(el, 20, 60)
       submitPrompt(el, 'beta prompt')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
+
+      // Close, then open from history
+      const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn2?.click()
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
 
       // Currently showing index 1 (beta). Navigate backward.
       const prevBtn = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
@@ -958,12 +873,9 @@ describe('createAgentOverlay', () => {
       // Single analysis
       selectAndSubmit(agent, el, 'test')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalled())
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // With a single entry, nav bar should not appear (totalCount === 1)
-      // so close and use history button
+      // With a single entry, close and use history button
       const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn?.click()
 
@@ -976,7 +888,7 @@ describe('createAgentOverlay', () => {
       const navLeft = nav.firstElementChild as HTMLElement
       expect(navLeft.style.visibility).toBe('hidden')
 
-      // Popup still shows the single entry
+      // Chat panel still shows the single entry
       const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
       expect(content?.textContent).toContain('only entry')
 
@@ -1005,9 +917,7 @@ describe('createAgentOverlay', () => {
       // Two analyses
       selectAndSubmit(agent, el, 'first')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
       const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn?.click()
@@ -1019,9 +929,14 @@ describe('createAgentOverlay', () => {
       fireDrag(el, 20, 60)
       submitPrompt(el, 'second')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
+
+      // Close, open from history, navigate to first
+      const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn2?.click()
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
 
       // Navigate back to first entry (index 0)
       const prevBtn = el.querySelector('[data-agent-overlay-nav-prev]') as HTMLElement
@@ -1065,9 +980,7 @@ describe('createAgentOverlay', () => {
       // Two analyses
       selectAndSubmit(agent, el, 'first')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
       const closeBtn = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn?.click()
@@ -1079,11 +992,15 @@ describe('createAgentOverlay', () => {
       fireDrag(el, 20, 60)
       submitPrompt(el, 'second')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
       // Already at last entry (index 1). Try to go right.
+      const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
+      closeBtn2?.click()
+
+      const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+      histBtn.click()
+
       const nextBtn = el.querySelector('[data-agent-overlay-nav-next]') as HTMLElement
       nextBtn?.click()
 
@@ -1107,11 +1024,9 @@ describe('createAgentOverlay', () => {
       // First analysis
       selectAndSubmit(agent, el, 'first')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
-      // Close popup
+      // Close chat panel
       const closeBtn1 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
       closeBtn1?.click()
 
@@ -1123,9 +1038,7 @@ describe('createAgentOverlay', () => {
       fireDrag(el, 20, 60)
       submitPrompt(el, 'second')
       await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
-      await vi.waitFor(() =>
-        expect(el.querySelector('[data-agent-overlay-explanation]')).not.toBeNull(),
-      )
+      await vi.waitFor(() => expect(el.querySelector('[data-agent-overlay-chat]')).not.toBeNull())
 
       // Close and click history — should show latest (index 1, "result two")
       const closeBtn2 = el.querySelector('[data-agent-overlay-close]') as HTMLElement
@@ -1154,8 +1067,9 @@ describe('createAgentOverlay', () => {
       selectAndSubmit(agent, el, 'test')
 
       await vi.waitFor(() => {
-        const popup = el.querySelector('[data-agent-overlay-explanation]')
-        expect(popup).not.toBeNull()
+        // Chat panel should be showing with streamed content
+        const chat = el.querySelector('[data-agent-overlay-chat]')
+        expect(chat).not.toBeNull()
       })
 
       expect(provider.analyze).not.toHaveBeenCalled()
@@ -1202,6 +1116,82 @@ describe('createAgentOverlay', () => {
         expect(onStart).toHaveBeenCalledTimes(1)
         expect(onComplete).toHaveBeenCalledTimes(1)
       })
+
+      el.remove()
+    })
+  })
+
+  describe('multi-turn chat', () => {
+    it('follow-up turn appends to conversation within same selection', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'first answer' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First turn
+      selectAndSubmit(agent, el, 'first question')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+
+      // Submit follow-up in same chat panel
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'second answer',
+      })
+      submitPrompt(el, 'follow-up question')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+
+      // History should still be 1 entry (updated, not pushed)
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('1')
+      })
+
+      // Second call should have chatMessages with history of first turn
+      const call2 = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[1]
+      const options2 = call2[3]
+      // chatMessages should contain: user(first), assistant(first rawResponse), user(follow-up)
+      expect(options2.chatMessages).toHaveLength(3)
+      expect(options2.chatMessages[0].role).toBe('user')
+      expect(options2.chatMessages[1].role).toBe('assistant')
+      expect(options2.chatMessages[2].role).toBe('user')
+      expect(options2.chatMessages[2].content).toBe('follow-up question')
+
+      el.remove()
+    })
+
+    it('new selection starts fresh chat (new history entry)', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider({ explanation: 'first chat' })
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+
+      // First selection + turn
+      selectAndSubmit(agent, el, 'question 1')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1))
+
+      // New selection starts new chat
+      ;(provider.analyze as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        explanation: 'second chat',
+      })
+      agent.setSelectionEnabled(true)
+      fireDrag(el, 20, 60)
+      submitPrompt(el, 'question 2')
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(2))
+
+      // History should have 2 entries
+      await vi.waitFor(() => {
+        const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
+        const badge = histBtn.querySelector('span:last-child') as HTMLElement
+        expect(badge.textContent).toBe('2')
+      })
+
+      // Second call should have chatMessages with only the new question (no prior turns)
+      const call2 = (provider.analyze as ReturnType<typeof vi.fn>).mock.calls[1]
+      const options2 = call2[3]
+      expect(options2.chatMessages).toHaveLength(1)
+      expect(options2.chatMessages[0].role).toBe('user')
 
       el.remove()
     })

@@ -1,5 +1,5 @@
 // src/core/ui/chat-message-list.test.ts
-import type { ChatTurn, AnalysisPreset } from '../types'
+import type { ChatTurn } from '../types'
 import { ChatMessageList } from './chat-message-list'
 
 function makeTurn(overrides: Partial<ChatTurn> = {}): ChatTurn {

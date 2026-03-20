@@ -1,8 +1,7 @@
 // src/core/ui/explanation-popup.test.ts
-import type { HistoryEntry } from '../types'
-import { ExplanationPopup } from './explanation-popup'
+import { ExplanationPopup, type LegacyHistoryEntry } from './explanation-popup'
 
-function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
+function makeEntry(overrides: Partial<LegacyHistoryEntry> = {}): LegacyHistoryEntry {
   return {
     prompt: 'What is the support level?',
     isQuickRun: false,

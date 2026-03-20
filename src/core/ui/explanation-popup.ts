@@ -1,5 +1,17 @@
 // src/core/ui/explanation-popup.ts
-import type { HistoryEntry } from '../types'
+// NOTE: This component is deprecated — replaced by ChatPanel.
+// Uses a legacy entry type that matches the old HistoryEntry shape.
+import type { AnalysisPreset, NormalizedAnalysisResult, TimeValue } from '../types'
+
+/** @deprecated Legacy shape — kept for backward compatibility of this deprecated component. */
+export interface LegacyHistoryEntry {
+  readonly prompt: string
+  readonly isQuickRun: boolean
+  readonly model?: string
+  readonly presets: readonly AnalysisPreset[]
+  readonly result: NormalizedAnalysisResult
+  readonly range: { readonly from: TimeValue; readonly to: TimeValue }
+}
 import {
   ESTIMATED_UI_HEIGHT,
   UI_PADDING,
@@ -14,7 +26,7 @@ import DOMPurify from 'dompurify'
 marked.setOptions({ breaks: true, gfm: true })
 
 export interface ExplanationShowOptions {
-  readonly entry: HistoryEntry
+  readonly entry: LegacyHistoryEntry
   readonly currentIndex: number
   readonly totalCount: number
   readonly position?: UIPosition
@@ -165,7 +177,7 @@ function buildPromptBubble(prompt: string): HTMLElement {
   return wrapper
 }
 
-function buildQuickIndicator(entry: HistoryEntry): HTMLElement {
+function buildQuickIndicator(entry: LegacyHistoryEntry): HTMLElement {
   const bar = document.createElement('div')
   bar.setAttribute('data-agent-overlay-quick-indicator', '')
 
@@ -185,7 +197,7 @@ function buildQuickIndicator(entry: HistoryEntry): HTMLElement {
   return bar
 }
 
-function buildTagsRow(entry: HistoryEntry): HTMLElement {
+function buildTagsRow(entry: LegacyHistoryEntry): HTMLElement {
   const row = document.createElement('div')
   row.setAttribute('data-agent-overlay-tags', '')
   row.style.cssText = `
@@ -218,7 +230,7 @@ function buildTagsRow(entry: HistoryEntry): HTMLElement {
   return row
 }
 
-function buildMarkdownContent(entry: HistoryEntry): HTMLElement {
+function buildMarkdownContent(entry: LegacyHistoryEntry): HTMLElement {
   const container = document.createElement('div')
   container.setAttribute('data-agent-overlay-markdown', '')
 
@@ -418,7 +430,7 @@ export class ExplanationPopup {
       presets: ctx.presets.map((p) => ({ label: p.label, systemPrompt: '', quickPrompt: '' })),
       result: {},
       range: { from: 0, to: 0 },
-    } as HistoryEntry
+    } as LegacyHistoryEntry
 
     if (ctx.isQuickRun) {
       stickyHeader.appendChild(buildQuickIndicator(headerEntry))
