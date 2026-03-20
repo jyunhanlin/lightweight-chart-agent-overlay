@@ -4,6 +4,7 @@ import type {
   AgentOverlay,
   AgentOverlayEventMap,
   AgentOverlayOptions,
+  AnalyzeOptions,
   AnalysisPreset,
   ChartContext,
   LLMProvider,
@@ -23,6 +24,7 @@ import { applyThemeVars } from './ui/theme'
 import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
 import { HistoryButton } from './ui/history-button'
+import { parseStreamedResponse } from '../providers/parse-response'
 
 async function resolveHeaders(provider: {
   headers?: LLMProvider['headers']
@@ -138,13 +140,43 @@ export function createAgentOverlay(
     try {
       const resolvedHeaders = await resolveHeaders(options.provider)
 
-      const rawResult = await options.provider.analyze(context, prompt, signal, {
+      const analyzeOptions: AnalyzeOptions = {
         model: promptInput.getSelectedModel(),
         additionalSystemPrompt: additionalSystemPrompt || undefined,
         apiKey: storedApiKey,
         headers: resolvedHeaders,
-      })
-      const result: NormalizedAnalysisResult = validateResult(rawResult)
+      }
+
+      let result: NormalizedAnalysisResult
+
+      if (options.provider.analyzeStream) {
+        // ── Streaming path ──────────────────────────────────
+        const position = promptInput.getLastPosition() ?? undefined
+        explanationPopup.showStreaming(position)
+        promptInput.hide()
+
+        let fullText = ''
+        for await (const chunk of options.provider.analyzeStream(
+          context,
+          prompt,
+          signal,
+          analyzeOptions,
+        )) {
+          fullText += chunk
+          explanationPopup.appendStreamText(chunk)
+        }
+
+        const parsed = parseStreamedResponse(fullText)
+        result = validateResult({
+          explanation: parsed.explanation || undefined,
+          priceLines: parsed.overlays.priceLines,
+          markers: parsed.overlays.markers,
+        })
+      } else {
+        // ── Fallback path (non-streaming) ───────────────────
+        const rawResult = await options.provider.analyze(context, prompt, signal, analyzeOptions)
+        result = validateResult(rawResult)
+      }
 
       const entry = {
         prompt,
@@ -159,19 +191,30 @@ export function createAgentOverlay(
       historyButton.setCount(historyStore.size())
       currentHistoryIndex = historyStore.size() - 1
 
-      // Show popup BEFORE rendering overlays — show() calls hide() which
-      // triggers onClose → renderer.clear(). Rendering after ensures
-      // the new overlays are not immediately cleared.
-      if (result.explanation) {
-        explanationPopup.show({
+      if (options.provider.analyzeStream) {
+        // Finalize streaming popup → structured view
+        explanationPopup.finalizeStream({
           entry,
           currentIndex: currentHistoryIndex,
           totalCount: historyStore.size(),
           position: promptInput.getLastPosition() ?? undefined,
         })
+      } else {
+        // Non-streaming: show popup
+        // Show popup BEFORE rendering overlays — show() calls hide() which
+        // triggers onClose → renderer.clear(). Rendering after ensures
+        // the new overlays are not immediately cleared.
+        if (result.explanation) {
+          explanationPopup.show({
+            entry,
+            currentIndex: currentHistoryIndex,
+            totalCount: historyStore.size(),
+            position: promptInput.getLastPosition() ?? undefined,
+          })
+        }
+        promptInput.hide()
       }
 
-      promptInput.hide()
       renderer.clear()
       renderer.render(result)
       emitter.emit('analyze-complete', result)
@@ -189,8 +232,11 @@ export function createAgentOverlay(
         }
         emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
       }
+      // On abort or error, clean up any streaming popup
+      explanationPopup.hide()
     } finally {
       abortController = null
+      promptInput.setLoading(false)
     }
   }
 
@@ -266,6 +312,12 @@ export function createAgentOverlay(
     if (targetIndex >= 0 && targetIndex < historyStore.size()) {
       showHistoryEntry(targetIndex)
     }
+  }
+
+  explanationPopup.onAbort = () => {
+    cancelInFlight()
+    explanationPopup.hide()
+    rangeSelector.clearSelection()
   }
 
   historyButton.onClick = () => {

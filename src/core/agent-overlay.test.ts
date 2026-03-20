@@ -84,7 +84,26 @@ function selectAndSubmit(
   submitPrompt(el, text)
 }
 
+function createStreamingProvider(chunks: string[], result: AnalysisResult = {}): LLMProvider {
+  return {
+    analyze: vi.fn().mockResolvedValue(result),
+    async *analyzeStream() {
+      for (const chunk of chunks) {
+        yield chunk
+      }
+    },
+  }
+}
+
 describe('createAgentOverlay', () => {
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 0
+    })
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  })
+
   it('returns AgentOverlay with expected methods', () => {
     const { chart } = createMockChart()
     const series = createMockSeries()
@@ -1121,6 +1140,72 @@ describe('createAgentOverlay', () => {
 
       const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
       expect(content?.textContent).toContain('result two')
+
+      el.remove()
+    })
+  })
+
+  describe('streaming path', () => {
+    it('uses analyzeStream when provider has it', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createStreamingProvider([
+        'Analysis text.\n\n',
+        '```json\n{"priceLines":[{"price":100,"title":"S"}]}\n```',
+      ])
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        const popup = el.querySelector('[data-agent-overlay-explanation]')
+        expect(popup).not.toBeNull()
+      })
+
+      expect(provider.analyze).not.toHaveBeenCalled()
+
+      el.remove()
+    })
+
+    it('falls back to analyze when no analyzeStream', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const mockResult: AnalysisResult = {
+        explanation: 'Fallback result',
+        priceLines: [{ price: 100, title: 'Support' }],
+      }
+      const provider = createMockProvider(mockResult)
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+
+      el.remove()
+    })
+
+    it('emits analyze-start and analyze-complete for streaming', async () => {
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider = createStreamingProvider([
+        'Text.\n\n',
+        '```json\n{"priceLines":[],"markers":[]}\n```',
+      ])
+
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      const onStart = vi.fn()
+      const onComplete = vi.fn()
+      agent.on('analyze-start', onStart)
+      agent.on('analyze-complete', onComplete)
+
+      selectAndSubmit(agent, el, 'test')
+
+      await vi.waitFor(() => {
+        expect(onStart).toHaveBeenCalledTimes(1)
+        expect(onComplete).toHaveBeenCalledTimes(1)
+      })
 
       el.remove()
     })
