@@ -14,6 +14,7 @@ export async function* parseSSE(body: ReadableStream<Uint8Array>): AsyncIterable
 
   try {
     while (true) {
+      // eslint-disable-next-line no-await-in-loop -- sequential read is required for streams
       const { done, value } = await reader.read()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
