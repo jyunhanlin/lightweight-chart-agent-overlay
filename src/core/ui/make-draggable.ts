@@ -3,6 +3,8 @@
 export interface DragOptions {
   /** CSS selector for elements that should NOT trigger drag (e.g. 'input, button') */
   readonly exclude?: string
+  /** Only this element triggers drag; clicks elsewhere on the main element are ignored */
+  readonly handle?: HTMLElement
   /** Called when drag ends with the final position */
   readonly onDragEnd?: (position: { left: number; top: number }) => void
 }
@@ -68,10 +70,11 @@ export function makeDraggable(element: HTMLElement, options?: DragOptions): () =
     }
   }
 
-  element.addEventListener('mousedown', onMouseDown)
+  const dragTarget = options?.handle ?? element
+  dragTarget.addEventListener('mousedown', onMouseDown)
 
   return () => {
-    element.removeEventListener('mousedown', onMouseDown)
+    dragTarget.removeEventListener('mousedown', onMouseDown)
     document.removeEventListener('mousemove', onMouseMove)
     document.removeEventListener('mouseup', onMouseUp)
   }

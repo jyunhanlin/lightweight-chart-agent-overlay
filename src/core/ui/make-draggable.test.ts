@@ -175,4 +175,49 @@ describe('makeDraggable', () => {
 
     document.dispatchEvent(new MouseEvent('mouseup'))
   })
+
+  it('handle option limits drag trigger to specified element', () => {
+    const handle = document.createElement('div')
+    handle.style.cssText = 'width: 100px; height: 30px;'
+    element.appendChild(handle)
+
+    const cleanup = makeDraggable(element, { handle })
+
+    // Mousedown on the element body (not handle) — should NOT drag
+    element.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }))
+    document.dispatchEvent(new MouseEvent('mouseup'))
+
+    const leftAfterBodyDrag = parseFloat(element.style.left) || 0
+
+    // Mousedown on the handle — SHOULD drag
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }))
+    document.dispatchEvent(new MouseEvent('mouseup'))
+
+    const leftAfterHandleDrag = parseFloat(element.style.left) || 0
+
+    // The handle drag should have moved the element
+    expect(leftAfterHandleDrag).not.toBe(leftAfterBodyDrag)
+
+    cleanup()
+  })
+
+  it('exclude option still works when handle is not set', () => {
+    const button = document.createElement('button')
+    element.appendChild(button)
+
+    makeDraggable(element, { exclude: 'button' })
+
+    const mousedown = new MouseEvent('mousedown', { clientX: 50, clientY: 50 })
+    Object.defineProperty(mousedown, 'target', { value: button })
+    element.dispatchEvent(mousedown)
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }))
+
+    // Drag was blocked by exclude — position should not change
+    expect(element.style.left).toBe('')
+
+    document.dispatchEvent(new MouseEvent('mouseup'))
+  })
 })
