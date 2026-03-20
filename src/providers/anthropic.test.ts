@@ -213,6 +213,25 @@ describe('createAnthropicProvider', () => {
     const headers = (globalThis.fetch as any).mock.calls[0][1].headers
     expect(headers['anthropic-dangerous-direct-browser-access']).toBe('true')
   })
+
+  it('uses chatMessages when provided in analyze options', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ text: 'response' }] }),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'key', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'ignored', undefined, {
+      chatMessages: [
+        { role: 'user', content: 'first question' },
+        { role: 'assistant', content: 'first answer' },
+        { role: 'user', content: 'follow up' },
+      ],
+    })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.messages).toHaveLength(3)
+    expect(body.messages[0].content).toBe('first question')
+    expect(body.messages[2].content).toBe('follow up')
+  })
 })
 
 describe('analyzeStream', () => {
@@ -308,5 +327,25 @@ describe('analyzeStream', () => {
     }
     const headers = (globalThis.fetch as any).mock.calls[0][1].headers
     expect(headers['X-Custom']).toBe('value')
+  })
+
+  it('uses chatMessages when provided in analyzeStream options', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: createSSEStream(['event: message_stop\ndata: {"type":"message_stop"}\n\n']),
+    })
+    const provider = createAnthropicProvider({ apiKey: 'key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'ignored', undefined, {
+      chatMessages: [
+        { role: 'user', content: 'first question' },
+        { role: 'assistant', content: 'first answer' },
+        { role: 'user', content: 'follow up' },
+      ],
+    })) {
+    }
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.messages).toHaveLength(3)
+    expect(body.messages[0].content).toBe('first question')
+    expect(body.messages[2].content).toBe('follow up')
   })
 })

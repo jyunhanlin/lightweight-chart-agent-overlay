@@ -51,6 +51,11 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
+      const chatMessages = analyzeOptions?.chatMessages
+        ? analyzeOptions.chatMessages.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: 'user' as const, content: userMessage }]
+      const messages = [{ role: 'system' as const, content: finalSystemPrompt }, ...chatMessages]
+
       const response = await fetch(baseURL, {
         method: 'POST',
         headers: {
@@ -60,10 +65,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         },
         body: JSON.stringify({
           model: requestModel,
-          messages: [
-            { role: 'system', content: finalSystemPrompt },
-            { role: 'user', content: userMessage },
-          ],
+          messages,
           max_tokens: maxTokens,
         }),
         signal,
@@ -101,6 +103,11 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
+      const chatMessages = analyzeOptions?.chatMessages
+        ? analyzeOptions.chatMessages.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: 'user' as const, content: userMessage }]
+      const messages = [{ role: 'system' as const, content: finalSystemPrompt }, ...chatMessages]
+
       const response = await fetch(baseURL, {
         method: 'POST',
         headers: {
@@ -110,10 +117,7 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         },
         body: JSON.stringify({
           model: requestModel,
-          messages: [
-            { role: 'system', content: finalSystemPrompt },
-            { role: 'user', content: userMessage },
-          ],
+          messages,
           max_tokens: maxTokens,
           stream: true,
         }),

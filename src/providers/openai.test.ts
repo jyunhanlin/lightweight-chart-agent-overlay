@@ -188,6 +188,27 @@ describe('createOpenAIProvider', () => {
     const provider = createOpenAIProvider({ availableModels: MODELS })
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('API key is required')
   })
+
+  it('uses chatMessages when provided in analyze options', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: 'response' } }] }),
+    })
+    const provider = createOpenAIProvider({ apiKey: 'key', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'ignored', undefined, {
+      chatMessages: [
+        { role: 'user', content: 'first question' },
+        { role: 'assistant', content: 'first answer' },
+        { role: 'user', content: 'follow up' },
+      ],
+    })
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    // OpenAI prepends system message
+    expect(body.messages[0].role).toBe('system')
+    expect(body.messages[1].content).toBe('first question')
+    expect(body.messages[3].content).toBe('follow up')
+    expect(body.messages).toHaveLength(4)
+  })
 })
 
 describe('analyzeStream', () => {
@@ -284,5 +305,26 @@ describe('analyzeStream', () => {
       chunks.push(chunk)
     }
     expect(chunks).toEqual(['text'])
+  })
+
+  it('uses chatMessages when provided in analyzeStream options', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: createSSEStream(['data: [DONE]\n\n']) })
+    const provider = createOpenAIProvider({ apiKey: 'key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'ignored', undefined, {
+      chatMessages: [
+        { role: 'user', content: 'first question' },
+        { role: 'assistant', content: 'first answer' },
+        { role: 'user', content: 'follow up' },
+      ],
+    })) {
+    }
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    // OpenAI prepends system message
+    expect(body.messages[0].role).toBe('system')
+    expect(body.messages[1].content).toBe('first question')
+    expect(body.messages[3].content).toBe('follow up')
+    expect(body.messages).toHaveLength(4)
   })
 })

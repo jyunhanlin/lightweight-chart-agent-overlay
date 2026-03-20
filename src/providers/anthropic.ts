@@ -49,6 +49,10 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
+      const messages = analyzeOptions?.chatMessages
+        ? analyzeOptions.chatMessages.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: 'user' as const, content: userMessage }]
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -62,7 +66,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
           model: requestModel,
           max_tokens: maxTokens,
           system: finalSystemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
+          messages,
         }),
         signal,
       })
@@ -99,6 +103,10 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
+      const messages = analyzeOptions?.chatMessages
+        ? analyzeOptions.chatMessages.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: 'user' as const, content: userMessage }]
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -112,7 +120,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LLMP
           model: requestModel,
           max_tokens: maxTokens,
           system: finalSystemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
+          messages,
           stream: true,
         }),
         signal,
