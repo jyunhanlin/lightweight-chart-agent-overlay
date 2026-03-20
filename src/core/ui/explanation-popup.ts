@@ -113,17 +113,20 @@ function buildNavBar(
   navLeft.appendChild(counter)
   navLeft.appendChild(nextBtn)
 
+  const btnStyle = `
+    background: none; border: none; color: var(--ao-close); cursor: pointer;
+    font-size: 13px; line-height: 1; padding: 2px 4px; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+  `
+
   const navRight = document.createElement('div')
-  navRight.style.cssText = 'display: flex; align-items: center; gap: 2px; margin-left: auto;'
+  navRight.style.cssText = 'display: flex; align-items: center; gap: 0; margin-left: auto;'
 
   if (onToggleCollapse) {
     const collapseBtn = document.createElement('button')
     collapseBtn.setAttribute('data-agent-overlay-collapse', '')
-    collapseBtn.textContent = '\u2500' // ─
-    collapseBtn.style.cssText = `
-      background: none; border: none; color: var(--ao-close); cursor: pointer;
-      font-size: 14px; line-height: 1; padding: 0 4px;
-    `
+    collapseBtn.textContent = '\u2013' // –
+    collapseBtn.style.cssText = btnStyle
     collapseBtn.addEventListener('click', onToggleCollapse)
     navRight.appendChild(collapseBtn)
   }
@@ -131,10 +134,7 @@ function buildNavBar(
   const closeBtn = document.createElement('button')
   closeBtn.setAttribute('data-agent-overlay-close', '')
   closeBtn.textContent = '\u00d7'
-  closeBtn.style.cssText = `
-    background: none; border: none; color: var(--ao-close); cursor: pointer;
-    font-size: 16px; line-height: 1; padding: 0 4px;
-  `
+  closeBtn.style.cssText = btnStyle
   closeBtn.addEventListener('click', onClose)
   navRight.appendChild(closeBtn)
 
@@ -312,7 +312,7 @@ export class ExplanationPopup {
     this.contentEl.style.display = this.collapsed ? 'none' : ''
     // Update collapse button icon
     const btn = this.wrapper.querySelector('[data-agent-overlay-collapse]')
-    if (btn) btn.textContent = this.collapsed ? '\u25a1' : '\u2500' // ▢ or ─
+    if (btn) btn.textContent = this.collapsed ? '\u25fb' : '\u2013' // ◻ or –
     // Remove max-height and overflow when collapsed so wrapper shrinks to header
     if (this.collapsed) {
       this.wrapper.style.maxHeight = 'none'
@@ -388,6 +388,8 @@ export class ExplanationPopup {
     const wrapper = buildWrapperBase(ctx.position)
 
     const handleAbort = () => this.onAbort?.()
+    const handleCollapse = () => this.toggleCollapse()
+    this.collapsed = false
 
     // ── Sticky header: nav + prompt/quick + tags (same as structured view) ──
     const stickyHeader = document.createElement('div')
@@ -404,6 +406,7 @@ export class ExplanationPopup {
         () => {},
         () => {},
         handleAbort,
+        handleCollapse,
       ),
     )
 
@@ -426,7 +429,10 @@ export class ExplanationPopup {
     stickyHeader.appendChild(buildTagsRow(headerEntry))
     wrapper.appendChild(stickyHeader)
 
-    // ── Stream text area (rendered as markdown) ──
+    // ── Stream content container (collapsible) ──
+    const content = document.createElement('div')
+    this.contentEl = content
+
     injectMarkdownStyles()
     const streamText = document.createElement('div')
     streamText.setAttribute('data-agent-overlay-stream-text', '')
@@ -438,8 +444,9 @@ export class ExplanationPopup {
     cursor.setAttribute('data-agent-overlay-stream-cursor', '')
     cursor.textContent = '▌'
 
-    wrapper.appendChild(streamText)
-    wrapper.appendChild(cursor)
+    content.appendChild(streamText)
+    content.appendChild(cursor)
+    wrapper.appendChild(content)
 
     injectBlinkAnimation()
 
