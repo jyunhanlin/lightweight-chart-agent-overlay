@@ -878,9 +878,7 @@ describe('createAgentOverlay', () => {
 
       // Should now show first entry content
       await vi.waitFor(() => {
-        const sectionContent = el.querySelector(
-          '[data-agent-overlay-section-content]',
-        ) as HTMLElement
+        const sectionContent = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
         expect(sectionContent?.textContent).toContain('first')
       })
 
@@ -889,9 +887,7 @@ describe('createAgentOverlay', () => {
       nextBtn?.click()
 
       await vi.waitFor(() => {
-        const sectionContent = el.querySelector(
-          '[data-agent-overlay-section-content]',
-        ) as HTMLElement
+        const sectionContent = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
         expect(sectionContent?.textContent).toContain('second')
       })
 
@@ -945,7 +941,7 @@ describe('createAgentOverlay', () => {
 
       // Should show alpha
       await vi.waitFor(() => {
-        const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+        const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
         expect(content?.textContent).toContain('alpha')
       })
 
@@ -981,7 +977,7 @@ describe('createAgentOverlay', () => {
       expect(navLeft.style.visibility).toBe('hidden')
 
       // Popup still shows the single entry
-      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
       expect(content?.textContent).toContain('only entry')
 
       el.remove()
@@ -1032,7 +1028,7 @@ describe('createAgentOverlay', () => {
       prevBtn?.click()
 
       await vi.waitFor(() => {
-        const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+        const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
         expect(content?.textContent).toContain('first')
       })
 
@@ -1041,7 +1037,7 @@ describe('createAgentOverlay', () => {
       prevBtn2?.click()
 
       // Still showing first entry
-      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
       expect(content?.textContent).toContain('first')
 
       el.remove()
@@ -1092,7 +1088,7 @@ describe('createAgentOverlay', () => {
       nextBtn?.click()
 
       // Still showing second entry
-      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
       expect(content?.textContent).toContain('second')
 
       el.remove()
@@ -1138,7 +1134,7 @@ describe('createAgentOverlay', () => {
       const histBtn = el.querySelector('[data-agent-overlay-history]') as HTMLElement
       histBtn.click()
 
-      const content = el.querySelector('[data-agent-overlay-section-content]') as HTMLElement
+      const content = el.querySelector('[data-agent-overlay-markdown]') as HTMLElement
       expect(content?.textContent).toContain('result two')
 
       el.remove()

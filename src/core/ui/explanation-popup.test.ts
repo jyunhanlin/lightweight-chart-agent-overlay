@@ -36,30 +36,27 @@ describe('ExplanationPopup', () => {
     document.body.removeChild(container)
   })
 
-  // --- Section rendering ---
+  // --- Markdown content rendering ---
 
-  it('shows structured sections with label and content', () => {
+  it('renders explanation as markdown HTML', () => {
     const popup = new ExplanationPopup(container)
     popup.show({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
     const el = container.querySelector('[data-agent-overlay-explanation]')!
     expect(el).not.toBeNull()
-    const labels = el.querySelectorAll('[data-agent-overlay-section-label]')
-    const contents = el.querySelectorAll('[data-agent-overlay-section-content]')
-    expect(labels).toHaveLength(2)
-    expect(contents).toHaveLength(2)
-    expect(labels[0].textContent).toBe('Technical')
-    expect(contents[0].textContent).toBe('Support at $82,340...')
-    expect(labels[1].textContent).toBe('Entry/Exit')
-    expect(contents[1].textContent).toBe('Bullish flag forming...')
+    const markdown = el.querySelector('[data-agent-overlay-markdown]')
+    expect(markdown).not.toBeNull()
+    expect(markdown!.innerHTML).toContain('Support at $82,340...')
+    expect(markdown!.innerHTML).toContain('Bullish flag forming...')
   })
 
-  it('renders sections even when explanation has no sections array (empty)', () => {
+  it('renders empty content when explanation has no sections', () => {
     const entry = makeEntry({ result: { explanation: { sections: [] } } })
     const popup = new ExplanationPopup(container)
     popup.show({ entry, currentIndex: 0, totalCount: 1 })
     const el = container.querySelector('[data-agent-overlay-explanation]')!
     expect(el).not.toBeNull()
-    expect(el.querySelectorAll('[data-agent-overlay-section-label]')).toHaveLength(0)
+    const markdown = el.querySelector('[data-agent-overlay-markdown]')
+    expect(markdown).not.toBeNull()
   })
 
   // --- Context area: custom prompt bubble ---
@@ -352,7 +349,7 @@ describe('ExplanationPopup', () => {
       // stream text area gone
       expect(el.querySelector('[data-agent-overlay-stream-text]')).toBeNull()
       // structured sections present
-      expect(el.querySelectorAll('[data-agent-overlay-section-label]').length).toBeGreaterThan(0)
+      expect(el.querySelector('[data-agent-overlay-markdown]')).not.toBeNull()
     })
 
     it('hide() cleans up streaming popup', () => {

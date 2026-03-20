@@ -14,48 +14,9 @@ function isValidMarker(item: unknown): boolean {
   return m.time != null && typeof m.position === 'string' && typeof m.shape === 'string'
 }
 
-/** Strip basic markdown formatting: **bold**, *italic*, # headers */
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/^#{1,3}\s+/gm, '')
-}
-
-/** Parse markdown text into sections by ## headers */
-function parseMarkdownSections(text: string): { label: string; content: string }[] {
-  const lines = text.split('\n')
-  const sections: { label: string; content: string }[] = []
-  let currentLabel = 'Analysis'
-  let currentContent: string[] = []
-
-  for (const line of lines) {
-    const headerMatch = line.match(/^#{1,3}\s+(.+)/)
-    if (headerMatch) {
-      if (currentContent.length > 0) {
-        const content = stripMarkdown(currentContent.join('\n').trim())
-        if (content) sections.push({ label: currentLabel, content })
-      }
-      currentLabel = stripMarkdown(headerMatch[1])
-      currentContent = []
-    } else {
-      currentContent.push(line)
-    }
-  }
-
-  if (currentContent.length > 0) {
-    const content = stripMarkdown(currentContent.join('\n').trim())
-    if (content) sections.push({ label: currentLabel, content })
-  }
-
-  return sections
-}
-
 function normalizeExplanation(raw: unknown): NormalizedExplanation | undefined {
   if (typeof raw === 'string') {
-    if (!raw.trim()) return undefined
-    const sections = parseMarkdownSections(raw)
-    return sections.length > 0 ? { sections } : undefined
+    return raw.trim() ? { sections: [{ label: 'Analysis', content: raw }] } : undefined
   }
 
   if (typeof raw !== 'object' || raw === null) return undefined

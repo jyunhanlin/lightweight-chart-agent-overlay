@@ -7,6 +7,10 @@ import {
   type UIPosition,
 } from './calculate-position'
 import { makeDraggable } from './make-draggable'
+import { marked } from 'marked'
+
+// Configure marked for compact output
+marked.setOptions({ breaks: true, gfm: true })
 
 export interface ExplanationShowOptions {
   readonly entry: HistoryEntry
@@ -23,10 +27,42 @@ export interface StreamingContext {
   readonly position?: UIPosition
 }
 
-const SECTION_LABEL_COLORS = ['#7eb8f7', '#f7a87e', '#7ef7b8', '#f77eb8', '#b87ef7']
+function renderMarkdown(text: string): string {
+  return marked.parse(text) as string
+}
 
-function getLabelColor(index: number): string {
-  return SECTION_LABEL_COLORS[index % SECTION_LABEL_COLORS.length]
+function injectMarkdownStyles(): void {
+  const styleId = 'ao-markdown-style'
+  if (document.getElementById(styleId)) return
+  const style = document.createElement('style')
+  style.id = styleId
+  style.textContent = `
+    [data-agent-overlay-markdown] {
+      font-size: 13px; color: var(--ao-text); line-height: 1.6;
+      padding: 8px 12px 4px;
+    }
+    [data-agent-overlay-markdown] h1,
+    [data-agent-overlay-markdown] h2,
+    [data-agent-overlay-markdown] h3 {
+      color: var(--ao-text); margin: 12px 0 4px; font-size: 14px; font-weight: 600;
+    }
+    [data-agent-overlay-markdown] h1 { font-size: 15px; }
+    [data-agent-overlay-markdown] h2 { font-size: 14px; }
+    [data-agent-overlay-markdown] h3 { font-size: 13px; }
+    [data-agent-overlay-markdown] p { margin: 4px 0; }
+    [data-agent-overlay-markdown] ul,
+    [data-agent-overlay-markdown] ol { margin: 4px 0; padding-left: 20px; }
+    [data-agent-overlay-markdown] li { margin: 2px 0; }
+    [data-agent-overlay-markdown] strong { font-weight: 600; }
+    [data-agent-overlay-markdown] code {
+      background: var(--ao-tag-bg); padding: 1px 4px; border-radius: 3px; font-size: 12px;
+    }
+    [data-agent-overlay-markdown] hr {
+      border: none; border-top: 1px solid var(--ao-divider); margin: 8px 0;
+    }
+    [data-agent-overlay-markdown] > *:first-child { margin-top: 0; }
+  `
+  document.head.appendChild(style)
 }
 
 function buildNavBar(
@@ -164,37 +200,13 @@ function buildTagsRow(entry: HistoryEntry): HTMLElement {
   return row
 }
 
-function buildSections(entry: HistoryEntry): HTMLElement {
+function buildMarkdownContent(entry: HistoryEntry): HTMLElement {
   const container = document.createElement('div')
-  container.style.cssText = 'padding: 0 0 4px;'
+  container.setAttribute('data-agent-overlay-markdown', '')
 
   const sections = entry.result.explanation?.sections ?? []
-
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i]
-    const sectionEl = document.createElement('div')
-    sectionEl.style.cssText = `
-      padding: 8px 12px;
-      ${i > 0 ? 'border-top: 1px solid var(--ao-divider);' : ''}
-    `
-
-    const label = document.createElement('div')
-    label.setAttribute('data-agent-overlay-section-label', '')
-    label.textContent = section.label
-    label.style.cssText = `
-      font-size: 11px; font-weight: bold; color: ${getLabelColor(i)};
-      margin-bottom: 4px;
-    `
-
-    const content = document.createElement('div')
-    content.setAttribute('data-agent-overlay-section-content', '')
-    content.textContent = section.content
-    content.style.cssText = 'font-size: 13px; color: var(--ao-text); line-height: 1.5;'
-
-    sectionEl.appendChild(label)
-    sectionEl.appendChild(content)
-    container.appendChild(sectionEl)
-  }
+  const fullText = sections.map((s) => s.content).join('\n\n')
+  container.innerHTML = renderMarkdown(fullText)
 
   return container
 }
@@ -224,7 +236,7 @@ function buildWrapperBase(position?: UIPosition): HTMLElement {
   wrapper.setAttribute('data-agent-overlay-explanation', '')
   wrapper.style.cssText = `
     position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
-    border-radius: 6px; min-width: 420px; max-width: 520px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
+    border-radius: 6px; width: 420px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
     overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     color: var(--ao-text); font-size: 13px; cursor: grab;
   `
@@ -302,8 +314,9 @@ export class ExplanationPopup {
 
     wrapper.appendChild(stickyHeader)
 
-    // ── Scrollable content ────────────────────────────────────────────
-    wrapper.appendChild(buildSections(entry))
+    // ── Scrollable content (rendered markdown) ────────────────────────
+    injectMarkdownStyles()
+    wrapper.appendChild(buildMarkdownContent(entry))
 
     wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
     this.container.appendChild(wrapper)
@@ -376,11 +389,11 @@ export class ExplanationPopup {
     stickyHeader.appendChild(buildTagsRow(headerEntry))
     wrapper.appendChild(stickyHeader)
 
-    // ── Stream text area ──
+    // ── Stream text area (rendered as markdown) ──
+    injectMarkdownStyles()
     const streamText = document.createElement('div')
     streamText.setAttribute('data-agent-overlay-stream-text', '')
-    streamText.style.cssText =
-      'padding: 8px 12px; font-size: 13px; color: var(--ao-text); line-height: 1.5; white-space: pre-wrap; word-break: break-word;'
+    streamText.setAttribute('data-agent-overlay-markdown', '')
     this.streamTextEl = streamText
 
     // Blinking cursor
@@ -404,7 +417,7 @@ export class ExplanationPopup {
 
   setStreamText(text: string): void {
     if (!this.isStreaming || !this.streamTextEl) return
-    this.streamTextEl.textContent = text
+    this.streamTextEl.innerHTML = renderMarkdown(text)
     if (this.wrapper) {
       this.wrapper.scrollTop = this.wrapper.scrollHeight
     }
