@@ -94,6 +94,12 @@ export interface LLMProvider {
     signal?: AbortSignal,
     options?: AnalyzeOptions,
   ): Promise<AnalysisResult>
+  analyzeStream?(
+    context: ChartContext,
+    prompt: string,
+    signal?: AbortSignal,
+    options?: AnalyzeOptions,
+  ): AsyncIterable<string>
 }
 
 // --- Data Accessor ---
