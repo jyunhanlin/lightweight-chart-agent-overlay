@@ -148,14 +148,17 @@ export function createAgentOverlay(
       }
 
       let result: NormalizedAnalysisResult
+      // Capture position before hiding prompt input (used by both paths)
+      const position = promptInput.getLastPosition() ?? undefined
 
       if (options.provider.analyzeStream) {
         // ── Streaming path ──────────────────────────────────
-        const position = promptInput.getLastPosition() ?? undefined
-        explanationPopup.showStreaming(position)
-        promptInput.hide()
+        // Keep loading bar visible until first chunk arrives
 
         let fullText = ''
+        let streamingStarted = false
+        let displayedLen = 0
+
         for await (const chunk of options.provider.analyzeStream(
           context,
           prompt,
@@ -163,7 +166,21 @@ export function createAgentOverlay(
           analyzeOptions,
         )) {
           fullText += chunk
-          explanationPopup.appendStreamText(chunk)
+
+          // On first chunk: switch from loading bar to streaming popup
+          if (!streamingStarted) {
+            streamingStarted = true
+            explanationPopup.showStreaming(position)
+            promptInput.hide()
+          }
+
+          // Only display text before the JSON fence (hide ```json block)
+          const fenceIdx = fullText.indexOf('```json')
+          const safeEnd = fenceIdx !== -1 ? fenceIdx : fullText.length
+          if (safeEnd > displayedLen) {
+            explanationPopup.appendStreamText(fullText.slice(displayedLen, safeEnd))
+            displayedLen = safeEnd
+          }
         }
 
         const parsed = parseStreamedResponse(fullText)
@@ -193,11 +210,12 @@ export function createAgentOverlay(
 
       if (options.provider.analyzeStream) {
         // Finalize streaming popup → structured view
+        // Use the position captured before promptInput.hide()
         explanationPopup.finalizeStream({
           entry,
           currentIndex: currentHistoryIndex,
           totalCount: historyStore.size(),
-          position: promptInput.getLastPosition() ?? undefined,
+          position,
         })
       } else {
         // Non-streaming: show popup
@@ -209,7 +227,7 @@ export function createAgentOverlay(
             entry,
             currentIndex: currentHistoryIndex,
             totalCount: historyStore.size(),
-            position: promptInput.getLastPosition() ?? undefined,
+            position,
           })
         }
         promptInput.hide()
