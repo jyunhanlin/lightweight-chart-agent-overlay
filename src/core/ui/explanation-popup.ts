@@ -15,6 +15,14 @@ export interface ExplanationShowOptions {
   readonly position?: UIPosition
 }
 
+export interface StreamingContext {
+  readonly prompt: string
+  readonly isQuickRun: boolean
+  readonly model?: string
+  readonly presets: readonly { readonly label: string }[]
+  readonly position?: UIPosition
+}
+
 const SECTION_LABEL_COLORS = ['#7eb8f7', '#f7a87e', '#7ef7b8', '#f77eb8', '#b87ef7']
 
 function getLabelColor(index: number): string {
@@ -314,10 +322,9 @@ export class ExplanationPopup {
     this.showInternal(options)
   }
 
-  showStreaming(position?: UIPosition): void {
+  showStreaming(ctx: StreamingContext): void {
     // Remove existing popup directly — do NOT call hide() to avoid triggering onClose
     this.removeWrapperDirectly()
-    // Also clear any streaming state from a prior session
     this.isStreaming = false
     this.streamTextEl = null
     this.pendingText = ''
@@ -328,12 +335,19 @@ export class ExplanationPopup {
 
     this.isStreaming = true
 
-    const wrapper = buildWrapperBase(position)
+    const wrapper = buildWrapperBase(ctx.position)
 
     const handleAbort = () => this.onAbort?.()
 
+    // ── Sticky header: nav + prompt/quick + tags (same as structured view) ──
+    const stickyHeader = document.createElement('div')
+    stickyHeader.style.cssText = `
+      position: sticky; top: 0; z-index: 1; background: var(--ao-bg);
+      border-radius: 6px 6px 0 0;
+    `
+
     // Nav bar with totalCount=1 so history nav is hidden
-    wrapper.appendChild(
+    stickyHeader.appendChild(
       buildNavBar(
         0,
         1,
@@ -343,7 +357,26 @@ export class ExplanationPopup {
       ),
     )
 
-    // Stream text area
+    // Build a partial entry for the header builders
+    const headerEntry = {
+      prompt: ctx.prompt,
+      isQuickRun: ctx.isQuickRun,
+      model: ctx.model,
+      presets: ctx.presets.map((p) => ({ label: p.label, systemPrompt: '', quickPrompt: '' })),
+      result: {},
+      range: { from: 0, to: 0 },
+    } as HistoryEntry
+
+    if (ctx.isQuickRun) {
+      stickyHeader.appendChild(buildQuickIndicator(headerEntry))
+    } else if (ctx.prompt) {
+      stickyHeader.appendChild(buildPromptBubble(ctx.prompt))
+    }
+
+    stickyHeader.appendChild(buildTagsRow(headerEntry))
+    wrapper.appendChild(stickyHeader)
+
+    // ── Stream text area ──
     const streamText = document.createElement('div')
     streamText.setAttribute('data-agent-overlay-stream-text', '')
     streamText.style.cssText =
@@ -367,6 +400,14 @@ export class ExplanationPopup {
 
     clampToViewport(wrapper)
     this.cleanupDrag = makeDraggable(wrapper, { exclude: 'button' })
+  }
+
+  setStreamText(text: string): void {
+    if (!this.isStreaming || !this.streamTextEl) return
+    this.streamTextEl.textContent = text
+    if (this.wrapper) {
+      this.wrapper.scrollTop = this.wrapper.scrollHeight
+    }
   }
 
   appendStreamText(chunk: string): void {

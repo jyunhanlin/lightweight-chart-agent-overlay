@@ -278,7 +278,7 @@ describe('ExplanationPopup', () => {
 
     it('showStreaming() creates popup with empty content and cursor', () => {
       const popup = new ExplanationPopup(container)
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       const el = container.querySelector('[data-agent-overlay-explanation]')
       expect(el).not.toBeNull()
       const streamText = el!.querySelector('[data-agent-overlay-stream-text]')
@@ -294,13 +294,13 @@ describe('ExplanationPopup', () => {
       const onClose = vi.fn()
       popup.onClose = onClose
       popup.show({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       expect(onClose).not.toHaveBeenCalled()
     })
 
     it('appendStreamText() adds text to the stream area', () => {
       const popup = new ExplanationPopup(container)
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       popup.appendStreamText('Hello ')
       popup.appendStreamText('world')
       const el = container.querySelector('[data-agent-overlay-explanation]')!
@@ -314,7 +314,7 @@ describe('ExplanationPopup', () => {
       const onClose = vi.fn()
       popup.onAbort = onAbort
       popup.onClose = onClose
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       const closeBtn = container.querySelector('[data-agent-overlay-close]') as HTMLButtonElement
       closeBtn.click()
       expect(onAbort).toHaveBeenCalledTimes(1)
@@ -327,7 +327,7 @@ describe('ExplanationPopup', () => {
       const onClose = vi.fn()
       popup.onAbort = onAbort
       popup.onClose = onClose
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
       expect(onAbort).toHaveBeenCalledTimes(1)
       expect(onClose).not.toHaveBeenCalled()
@@ -335,7 +335,7 @@ describe('ExplanationPopup', () => {
 
     it('history nav is hidden during streaming', () => {
       const popup = new ExplanationPopup(container)
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       const nav = container.querySelector('[data-agent-overlay-nav]') as HTMLElement
       expect(nav).not.toBeNull()
       const navLeft = nav.firstElementChild as HTMLElement
@@ -344,7 +344,7 @@ describe('ExplanationPopup', () => {
 
     it('finalizeStream() transitions to structured view', () => {
       const popup = new ExplanationPopup(container)
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       popup.appendStreamText('some streaming text')
       popup.finalizeStream({ entry: makeEntry(), currentIndex: 0, totalCount: 1 })
       const el = container.querySelector('[data-agent-overlay-explanation]')!
@@ -357,7 +357,7 @@ describe('ExplanationPopup', () => {
 
     it('hide() cleans up streaming popup', () => {
       const popup = new ExplanationPopup(container)
-      popup.showStreaming()
+      popup.showStreaming({ prompt: 'test', isQuickRun: false, presets: [] })
       popup.hide()
       expect(container.querySelector('[data-agent-overlay-explanation]')).toBeNull()
     })

@@ -157,7 +157,6 @@ export function createAgentOverlay(
 
         let fullText = ''
         let streamingStarted = false
-        let displayedLen = 0
 
         for await (const chunk of options.provider.analyzeStream(
           context,
@@ -170,17 +169,29 @@ export function createAgentOverlay(
           // On first chunk: switch from loading bar to streaming popup
           if (!streamingStarted) {
             streamingStarted = true
-            explanationPopup.showStreaming(position)
+            explanationPopup.showStreaming({
+              position,
+              prompt,
+              isQuickRun,
+              model: promptInput.getSelectedModel(),
+              presets: analysisPresets,
+            })
             promptInput.hide()
           }
 
-          // Only display text before the JSON fence (hide ```json block)
+          // Display only text before the JSON fence; trim partial backticks
           const fenceIdx = fullText.indexOf('```json')
-          const safeEnd = fenceIdx !== -1 ? fenceIdx : fullText.length
-          if (safeEnd > displayedLen) {
-            explanationPopup.appendStreamText(fullText.slice(displayedLen, safeEnd))
-            displayedLen = safeEnd
+          let safeEnd: number
+          if (fenceIdx !== -1) {
+            safeEnd = fenceIdx
+          } else {
+            safeEnd = fullText.length
+            // Trim trailing backticks that might be the start of a fence
+            if (fullText.endsWith('```')) safeEnd -= 3
+            else if (fullText.endsWith('``')) safeEnd -= 2
+            else if (fullText.endsWith('`')) safeEnd -= 1
           }
+          explanationPopup.setStreamText(fullText.slice(0, safeEnd).trimEnd())
         }
 
         const parsed = parseStreamedResponse(fullText)
