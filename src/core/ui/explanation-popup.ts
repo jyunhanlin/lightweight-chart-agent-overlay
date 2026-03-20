@@ -224,7 +224,7 @@ function buildWrapperBase(position?: UIPosition): HTMLElement {
   wrapper.setAttribute('data-agent-overlay-explanation', '')
   wrapper.style.cssText = `
     position: absolute; z-index: 1000; background: var(--ao-bg); border: 1px solid var(--ao-border);
-    border-radius: 6px; width: 360px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
+    border-radius: 6px; min-width: 420px; max-width: 520px; max-height: min(400px, calc(100vh - ${UI_PADDING * 2}px));
     overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     color: var(--ao-text); font-size: 13px; cursor: grab;
   `
