@@ -2,6 +2,18 @@
 import { createOpenAIProvider } from './openai'
 import type { ChartContext } from '../core/types'
 
+function createSSEStream(events: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder()
+  return new ReadableStream({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(encoder.encode(event))
+      }
+      controller.close()
+    },
+  })
+}
+
 const MOCK_CONTEXT: ChartContext = {
   timeRange: { from: 1000, to: 3000 },
   data: [{ time: 1000, open: 100, high: 110, low: 90, close: 105 }],
@@ -175,5 +187,102 @@ describe('createOpenAIProvider', () => {
   it('throws when no apiKey from constructor or options', async () => {
     const provider = createOpenAIProvider({ availableModels: MODELS })
     await expect(provider.analyze(MOCK_CONTEXT, 'test')).rejects.toThrow('API key is required')
+  })
+})
+
+describe('analyzeStream', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns an async iterable of text chunks', async () => {
+    const sseEvents = [
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, body: createSSEStream(sseEvents) })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
+    const chunks: string[] = []
+    for await (const chunk of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      chunks.push(chunk)
+    }
+    expect(chunks).toEqual(['Hello', ' world'])
+  })
+
+  it('sends stream: true in request body', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: createSSEStream(['data: [DONE]\n\n']) })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+    }
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+    expect(body.stream).toBe(true)
+  })
+
+  it('uses options.apiKey when constructor apiKey is omitted', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: createSSEStream(['data: [DONE]\n\n']) })
+    const provider = createOpenAIProvider({ availableModels: MODELS })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test', undefined, {
+      apiKey: 'sk-byok',
+    })) {
+    }
+    const headers = (globalThis.fetch as any).mock.calls[0][1].headers
+    expect(headers['Authorization']).toBe('Bearer sk-byok')
+  })
+
+  it('throws when no apiKey available', async () => {
+    const provider = createOpenAIProvider({ availableModels: MODELS })
+    await expect(async () => {
+      for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      }
+    }).rejects.toThrow('API key is required')
+  })
+
+  it('throws on non-ok response', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 401, text: () => Promise.resolve('Unauthorized') })
+    const provider = createOpenAIProvider({ apiKey: 'bad-key', availableModels: MODELS })
+    await expect(async () => {
+      for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      }
+    }).rejects.toThrow('OpenAI API error')
+  })
+
+  it('uses custom baseURL for streaming', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: createSSEStream(['data: [DONE]\n\n']) })
+    const provider = createOpenAIProvider({
+      apiKey: 'test-key',
+      availableModels: MODELS,
+      baseURL: 'https://custom.api.com/v1/chat/completions',
+    })
+    for await (const _ of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+    }
+    expect(fetch).toHaveBeenCalledWith(
+      'https://custom.api.com/v1/chat/completions',
+      expect.any(Object),
+    )
+  })
+
+  it('skips delta events without content', async () => {
+    const sseEvents = [
+      'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"text"}}]}\n\n',
+      'data: {"choices":[{"delta":{}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, body: createSSEStream(sseEvents) })
+    const provider = createOpenAIProvider({ apiKey: 'test-key', availableModels: MODELS })
+    const chunks: string[] = []
+    for await (const chunk of provider.analyzeStream!(MOCK_CONTEXT, 'test')) {
+      chunks.push(chunk)
+    }
+    expect(chunks).toEqual(['text'])
   })
 })
