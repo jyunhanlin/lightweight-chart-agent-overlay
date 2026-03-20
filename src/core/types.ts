@@ -76,6 +76,20 @@ export interface AnalyzeOptions {
   readonly additionalSystemPrompt?: string
   readonly apiKey?: string
   readonly headers?: Readonly<Record<string, string>>
+  readonly chatMessages?: readonly ChatMessage[]
+}
+
+export interface ChatMessage {
+  readonly role: 'user' | 'assistant'
+  readonly content: string
+}
+
+export interface ChatTurn {
+  readonly userMessage: string
+  readonly rawResponse: string
+  readonly result: NormalizedAnalysisResult
+  readonly model?: string
+  readonly presets: readonly AnalysisPreset[]
 }
 
 // --- Provider ---
@@ -136,11 +150,7 @@ export interface PromptBuilder {
 // --- History ---
 
 export interface HistoryEntry {
-  readonly prompt: string
-  readonly isQuickRun: boolean
-  readonly model?: string
-  readonly presets: readonly AnalysisPreset[]
-  readonly result: NormalizedAnalysisResult
+  readonly turns: readonly ChatTurn[]
   readonly range: { readonly from: TimeValue; readonly to: TimeValue }
 }
 
