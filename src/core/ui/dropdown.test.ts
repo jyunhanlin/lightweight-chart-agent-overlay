@@ -284,6 +284,35 @@ describe('Dropdown', () => {
       d.destroy()
     })
 
+    it('touchstart outside closes the dropdown', () => {
+      const d = new Dropdown({ items: ITEMS })
+      container.appendChild(d.element)
+
+      // Open the dropdown first
+      d.element.click()
+      expect(document.querySelector('[data-dropdown-panel]')).not.toBeNull()
+
+      // Simulate touchstart outside (jsdom lacks Touch constructor; use plain object cast)
+      const touch = {
+        identifier: 0,
+        target: document.body,
+        clientX: 0,
+        clientY: 0,
+        pageX: 0,
+        pageY: 0,
+        screenX: 0,
+        screenY: 0,
+        radiusX: 0,
+        radiusY: 0,
+        rotationAngle: 0,
+        force: 1,
+      } as Touch
+      document.dispatchEvent(new TouchEvent('touchstart', { touches: [touch], bubbles: true }))
+
+      expect(document.querySelector('[data-dropdown-panel]')).toBeNull()
+      d.destroy()
+    })
+
     it('should clean up listeners on destroy', () => {
       const removeSpy = vi.spyOn(document, 'removeEventListener')
       const d = new Dropdown({ items: ITEMS })

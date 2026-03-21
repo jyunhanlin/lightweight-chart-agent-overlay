@@ -37,7 +37,7 @@ export class Dropdown {
   private selectedIds: ReadonlySet<string>
   private isOpen: boolean
   private panel: HTMLElement | null
-  private readonly handleOutsideClick: (e: MouseEvent) => void
+  private readonly handleOutsideClick: (e: Event) => void
   private readonly handleEscape: (e: KeyboardEvent) => void
 
   constructor(options: DropdownOptions) {
@@ -47,7 +47,7 @@ export class Dropdown {
     this.isOpen = false
     this.panel = null
 
-    this.handleOutsideClick = (e: MouseEvent) => {
+    this.handleOutsideClick = (e: Event) => {
       if (!this.isOpen) return
       const target = e.target as Node
       if (!this.element.contains(target) && !(this.panel?.contains(target) ?? false)) {
@@ -63,6 +63,7 @@ export class Dropdown {
 
     this.element = this.buildButton()
     document.addEventListener('mousedown', this.handleOutsideClick)
+    document.addEventListener('touchstart', this.handleOutsideClick)
     document.addEventListener('keydown', this.handleEscape)
   }
 
@@ -77,6 +78,7 @@ export class Dropdown {
     btn.textContent = buildButtonLabel([], this.placeholder, this.options.multiSelect ?? false)
 
     btn.addEventListener('mousedown', (e) => e.stopPropagation())
+    btn.addEventListener('touchstart', (e) => e.stopPropagation())
     btn.addEventListener('click', () => this.toggle())
 
     return btn
@@ -93,6 +95,7 @@ export class Dropdown {
       overflow: hidden; margin-top: 4px;
     `
     panel.addEventListener('mousedown', (e) => e.stopPropagation())
+    panel.addEventListener('touchstart', (e) => e.stopPropagation())
 
     for (const item of this.options.items) {
       panel.appendChild(this.buildItem(item))
@@ -276,6 +279,7 @@ export class Dropdown {
   destroy(): void {
     this.close()
     document.removeEventListener('mousedown', this.handleOutsideClick)
+    document.removeEventListener('touchstart', this.handleOutsideClick)
     document.removeEventListener('keydown', this.handleEscape)
   }
 }

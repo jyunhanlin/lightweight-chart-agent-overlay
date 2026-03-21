@@ -1,5 +1,7 @@
 // src/core/ui/history-button.ts
 
+import { stopPointerPropagation } from './pointer-events'
+
 export class HistoryButton {
   private readonly el: HTMLButtonElement
   private readonly badge: HTMLSpanElement
@@ -29,7 +31,7 @@ export class HistoryButton {
     el.appendChild(label)
     el.appendChild(badge)
 
-    el.addEventListener('mousedown', (e) => e.stopPropagation())
+    stopPointerPropagation(el)
     el.addEventListener('click', () => this.onClick?.())
 
     container.appendChild(el)

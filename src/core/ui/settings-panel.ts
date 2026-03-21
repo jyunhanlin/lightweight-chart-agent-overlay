@@ -1,5 +1,7 @@
 // src/core/ui/settings-panel.ts
 
+import { stopPointerPropagation } from './pointer-events'
+
 const DEFAULT_STORAGE_KEY = 'agent-overlay-api-key'
 
 interface SettingsPanelOptions {
@@ -33,7 +35,7 @@ export class SettingsPanel {
       border-radius: 6px; padding: 12px; min-width: 280px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     `
-    panel.addEventListener('mousedown', (e) => e.stopPropagation())
+    stopPointerPropagation(panel)
 
     // Title row
     const titleRow = document.createElement('div')
