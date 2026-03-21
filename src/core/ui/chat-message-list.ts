@@ -267,7 +267,7 @@ export class ChatMessageList {
     }
     const target = this.turns[index]
     if (target) {
-      target.style.borderLeftColor = '#f59e0b'
+      target.style.borderLeftColor = 'var(--ao-active-turn)'
     }
   }
 

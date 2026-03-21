@@ -35,6 +35,9 @@ export interface ThemeColors {
     readonly runBg: string
     readonly disabledText: string
   }
+  readonly chat: {
+    readonly activeTurn: string
+  }
   readonly history: {
     readonly bg: string
     readonly text: string
@@ -77,6 +80,9 @@ export const THEMES: Record<Theme, ThemeColors> = {
       runBg: '#1a2a4a',
       disabledText: '#555',
     },
+    chat: {
+      activeTurn: '#f59e0b',
+    },
     history: {
       bg: '#2a2a3a',
       text: '#888',
@@ -116,6 +122,9 @@ export const THEMES: Record<Theme, ThemeColors> = {
       runColor: '#1976d2',
       runBg: '#e3f2fd',
       disabledText: '#bbb',
+    },
+    chat: {
+      activeTurn: '#d97706',
     },
     history: {
       bg: '#f0f0f0',
@@ -163,6 +172,9 @@ export function applyThemeVars(el: HTMLElement, theme: Theme): void {
   el.style.setProperty('--dd-run-color', t.dropdown.runColor)
   el.style.setProperty('--dd-run-bg', t.dropdown.runBg)
   el.style.setProperty('--dd-disabled-text', t.dropdown.disabledText)
+
+  // Chat
+  el.style.setProperty('--ao-active-turn', t.chat.activeTurn)
 
   // History
   el.style.setProperty('--ao-history-bg', t.history.bg)

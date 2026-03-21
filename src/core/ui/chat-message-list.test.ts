@@ -107,7 +107,7 @@ describe('ChatMessageList', () => {
     const turn1 = turns[1] as HTMLElement
 
     expect(turn0.style.borderLeftColor).toBe('transparent')
-    expect(turn1.style.borderLeftColor).toBe('var(--ao-bubble-bg)')
+    expect(turn1.style.borderLeftColor).toBe('var(--ao-active-turn)')
 
     list.destroy()
   })
