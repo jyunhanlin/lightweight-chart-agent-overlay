@@ -250,6 +250,7 @@ export function createAgentOverlay(
       }
       historyButton.setCount(historyStore.size())
       currentHistoryIndex = historyStore.size() - 1
+      chatPanel.updateNav(currentHistoryIndex, historyStore.size())
 
       emitter.emit('analyze-complete', result)
     } catch (err) {
@@ -311,7 +312,7 @@ export function createAgentOverlay(
     chatPanel.show({
       position,
       currentIndex: historyStore.size(),
-      totalCount: historyStore.size(),
+      totalCount: historyStore.size() + 1, // +1 for the current new chat
     })
     chatPanel.focusInput()
   }

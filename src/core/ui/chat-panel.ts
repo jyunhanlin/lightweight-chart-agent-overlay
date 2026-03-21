@@ -215,6 +215,36 @@ export class ChatPanel {
     this.chatInput?.focus()
   }
 
+  updateNav(currentIndex: number, totalCount: number): void {
+    if (!this.wrapper) return
+    const navLeft = this.wrapper.querySelector(
+      '[data-agent-overlay-nav] > div:first-child',
+    ) as HTMLElement | null
+    if (!navLeft) return
+
+    navLeft.style.visibility = totalCount <= 1 ? 'hidden' : ''
+
+    const prevBtn = navLeft.querySelector(
+      '[data-agent-overlay-nav-prev]',
+    ) as HTMLButtonElement | null
+    const counter = navLeft.querySelector('span')
+    const nextBtn = navLeft.querySelector(
+      '[data-agent-overlay-nav-next]',
+    ) as HTMLButtonElement | null
+
+    if (counter) counter.textContent = `${currentIndex + 1} / ${totalCount}`
+    if (prevBtn) {
+      prevBtn.disabled = currentIndex === 0
+      prevBtn.style.cursor = currentIndex === 0 ? 'default' : 'pointer'
+      prevBtn.style.color = currentIndex === 0 ? 'var(--ao-close)' : 'var(--ao-text)'
+    }
+    if (nextBtn) {
+      nextBtn.disabled = currentIndex >= totalCount - 1
+      nextBtn.style.cursor = currentIndex >= totalCount - 1 ? 'default' : 'pointer'
+      nextBtn.style.color = currentIndex >= totalCount - 1 ? 'var(--ao-close)' : 'var(--ao-text)'
+    }
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private removeWrapperDirectly(): void {
