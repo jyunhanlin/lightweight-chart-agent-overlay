@@ -257,9 +257,9 @@ export class Dropdown {
     parent.appendChild(this.panel)
     const panelHeight = this.panel.offsetHeight
 
-    const spaceBelow = parentRect
-      ? parentRect.bottom - btnRect.bottom
-      : window.innerHeight - btnRect.bottom
+    // Always measure against viewport — on desktop the dropdown can
+    // overflow the parent, on mobile the parent fills the screen anyway
+    const spaceBelow = window.innerHeight - btnRect.bottom
     const openUpward = spaceBelow < panelHeight + 8
 
     if (openUpward) {
