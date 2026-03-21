@@ -5,6 +5,7 @@ import { makeDraggable, type DraggableHandle } from './make-draggable'
 import { makeResizable, type ResizableHandle } from './make-resizable'
 import { ChatInput } from './chat-input'
 import { ChatMessageList } from './chat-message-list'
+import { onPointerDown, stopPointerPropagation } from './pointer-events'
 
 const DEFAULT_WIDTH = 420
 const DEFAULT_HEIGHT = 500
@@ -173,6 +174,12 @@ export class ChatPanel {
   private cleanupDrag: DraggableHandle | null = null
   private cleanupResize: ResizableHandle | null = null
 
+  private isCompact = false
+  private dividerEl: HTMLElement | null = null
+  private cleanupWrapperStop: (() => void) | null = null
+  private cleanupDividerPointer: (() => void) | null = null
+  private viewportHandler: (() => void) | null = null
+
   private readonly handleEscape: (e: KeyboardEvent) => void
 
   constructor(container: HTMLElement, options?: ChatPanelOptions) {
@@ -195,6 +202,9 @@ export class ChatPanel {
     // Replace without triggering onClose (same as ExplanationPopup pattern for re-show)
     this.removeWrapperDirectly()
     this.buildAndAttach(options)
+    if (this.isCompact) {
+      this.applyCompactStyles()
+    }
   }
 
   hide(): void {
@@ -295,6 +305,75 @@ export class ChatPanel {
     }
   }
 
+  // ── Compact mode ──────────────────────────────────────────────────────────
+
+  setCompact(compact: boolean): void {
+    this.isCompact = compact
+    if (!this.wrapper) return
+    this.applyCompactStyles()
+  }
+
+  private applyCompactStyles(): void {
+    if (!this.wrapper) return
+    const wrapper = this.wrapper
+
+    if (this.isCompact) {
+      wrapper.style.position = 'absolute'
+      wrapper.style.inset = '0'
+      wrapper.style.width = ''
+      wrapper.style.height = ''
+      wrapper.style.left = ''
+      wrapper.style.top = ''
+      wrapper.style.right = ''
+      wrapper.style.transform = ''
+      wrapper.style.borderRadius = '0'
+      wrapper.style.paddingTop = 'env(safe-area-inset-top)'
+      wrapper.style.paddingBottom = 'env(safe-area-inset-bottom)'
+      this.cleanupDrag?.disable()
+      this.cleanupResize?.disable()
+      const handles = wrapper.querySelectorAll<HTMLElement>('[data-resize]')
+      for (const h of handles) {
+        h.style.display = 'none'
+      }
+      if (this.dividerEl) this.dividerEl.style.display = 'none'
+      this.attachViewportListener()
+    } else {
+      wrapper.style.position = 'absolute'
+      wrapper.style.inset = ''
+      wrapper.style.width = `${DEFAULT_WIDTH}px`
+      wrapper.style.height = `${DEFAULT_HEIGHT}px`
+      wrapper.style.borderRadius = '6px'
+      wrapper.style.paddingTop = ''
+      wrapper.style.paddingBottom = ''
+      this.cleanupDrag?.enable()
+      this.cleanupResize?.enable()
+      const handles = wrapper.querySelectorAll<HTMLElement>('[data-resize]')
+      for (const h of handles) {
+        h.style.display = ''
+      }
+      if (this.dividerEl) this.dividerEl.style.display = ''
+      this.detachViewportListener()
+      clampToViewport(wrapper)
+    }
+  }
+
+  private attachViewportListener(): void {
+    if (!window.visualViewport || this.viewportHandler) return
+    this.viewportHandler = () => {
+      if (!this.wrapper || !this.isCompact) return
+      this.wrapper.style.height = `${window.visualViewport!.height}px`
+    }
+    window.visualViewport.addEventListener('resize', this.viewportHandler)
+  }
+
+  private detachViewportListener(): void {
+    if (this.viewportHandler && window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', this.viewportHandler)
+      this.viewportHandler = null
+    }
+    if (this.wrapper) this.wrapper.style.height = ''
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private removeWrapperDirectly(): void {
@@ -302,6 +381,13 @@ export class ChatPanel {
     this.cleanupDrag = null
     this.cleanupResize?.destroy()
     this.cleanupResize = null
+
+    this.cleanupWrapperStop?.()
+    this.cleanupWrapperStop = null
+    this.cleanupDividerPointer?.()
+    this.cleanupDividerPointer = null
+    this.dividerEl = null
+    this.detachViewportListener()
 
     this.messageList?.destroy()
     this.messageList = null
@@ -420,6 +506,7 @@ export class ChatPanel {
     const toolbar = chatInputContainer.querySelector('[data-chat-input-toolbar]')
     if (toolbar) {
       const divider = document.createElement('div')
+      divider.setAttribute('data-chat-divider', '')
       divider.style.cssText = `
         height: 4px; cursor: row-resize;
       `
@@ -435,37 +522,33 @@ export class ChatPanel {
       let startY = 0
       let startHeight = 0
 
-      const onMove = (e: MouseEvent) => {
-        const delta = startY - e.clientY
-        const newHeight = Math.max(initialHeight, Math.min(400, startHeight + delta))
-        chatInputContainer.style.height = `${newHeight}px`
-      }
-      const onUp = () => {
-        dividerDragging = false
-        divider.style.background = ''
-        document.removeEventListener('mousemove', onMove)
-        document.removeEventListener('mouseup', onUp)
-      }
-      divider.addEventListener('mousedown', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        dividerDragging = true
-        startY = e.clientY
-        startHeight = chatInputContainer.offsetHeight
-        if (initialHeight === 0) initialHeight = startHeight
-        document.addEventListener('mousemove', onMove)
-        document.addEventListener('mouseup', onUp)
+      this.cleanupDividerPointer = onPointerDown(divider, {
+        onStart(pos) {
+          dividerDragging = true
+          startY = pos.clientY
+          startHeight = chatInputContainer.offsetHeight
+          if (initialHeight === 0) initialHeight = startHeight
+        },
+        onMove(pos) {
+          const delta = startY - pos.clientY
+          const newHeight = Math.max(initialHeight, Math.min(400, startHeight + delta))
+          chatInputContainer.style.height = `${newHeight}px`
+        },
+        onEnd() {
+          dividerDragging = false
+          divider.style.background = ''
+        },
       })
+      this.dividerEl = divider
 
       toolbar.after(divider)
     }
 
-    // Stop mousedown propagation (so chart selection doesn't interfere)
+    // Stop mousedown/touchstart propagation (so chart selection doesn't interfere)
     // But also close dropdowns when clicking non-dropdown areas within the panel
-    wrapper.addEventListener('mousedown', (e) => {
-      e.stopPropagation()
-      this.chatInput?.closeDropdowns()
-    })
+    this.cleanupWrapperStop = stopPointerPropagation(wrapper)
+    wrapper.addEventListener('mousedown', () => this.chatInput?.closeDropdowns())
+    wrapper.addEventListener('touchstart', () => this.chatInput?.closeDropdowns())
 
     this.container.appendChild(wrapper)
     this.wrapper = wrapper

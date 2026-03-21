@@ -386,4 +386,59 @@ describe('ChatPanel', () => {
     expect(panels.length).toBe(1)
     panel.destroy()
   })
+
+  // ── Compact mode ──────────────────────────────────────────────────────────
+
+  describe('compact mode', () => {
+    it('setCompact(true) makes panel fill container', () => {
+      const panel = new ChatPanel(container)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+      panel.setCompact(true)
+
+      const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
+      expect(wrapper.style.position).toBe('absolute')
+      expect(wrapper.style.inset).toBe('0px')
+    })
+
+    it('setCompact(false) restores floating window', () => {
+      const panel = new ChatPanel(container)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+      panel.setCompact(true)
+      panel.setCompact(false)
+
+      const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
+      expect(wrapper.style.inset).not.toBe('0px')
+      expect(wrapper.style.width).toBe('420px')
+    })
+
+    it('setCompact(true) hides resize handles', () => {
+      const panel = new ChatPanel(container)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+      panel.setCompact(true)
+
+      const handles = container.querySelectorAll('[data-resize]')
+      for (const h of handles) {
+        expect((h as HTMLElement).style.display).toBe('none')
+      }
+    })
+
+    it('setCompact stores mode and applies on next show()', () => {
+      const panel = new ChatPanel(container)
+      panel.setCompact(true)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+
+      const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
+      expect(wrapper.style.position).toBe('absolute')
+      expect(wrapper.style.inset).toBe('0px')
+    })
+
+    it('divider is hidden in compact mode', () => {
+      const panel = new ChatPanel(container)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+      panel.setCompact(true)
+
+      const divider = container.querySelector('[data-chat-divider]') as HTMLElement
+      expect(divider.style.display).toBe('none')
+    })
+  })
 })
