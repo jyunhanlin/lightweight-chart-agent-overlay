@@ -426,6 +426,11 @@ export class ChatPanel {
     // Shrink/restore wrapper height so it collapses to just the header
     if (this.collapsed) {
       this.wrapper.style.height = 'auto'
+      // In compact mode, detach bottom so wrapper shrinks to header
+      if (this.isCompact) this.wrapper.style.bottom = ''
+    } else if (this.isCompact) {
+      this.wrapper.style.height = ''
+      this.wrapper.style.bottom = '0'
     } else {
       this.wrapper.style.height = `${DEFAULT_HEIGHT}px`
     }

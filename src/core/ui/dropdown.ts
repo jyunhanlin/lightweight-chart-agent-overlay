@@ -245,15 +245,37 @@ export class Dropdown {
     this.panel = this.buildPanel()
 
     const btnRect = this.element.getBoundingClientRect()
-    const parentRect = this.element.offsetParent?.getBoundingClientRect()
-    const offsetTop = parentRect ? btnRect.bottom - parentRect.top : btnRect.bottom
+    const parent = this.element.offsetParent ?? this.element.parentElement ?? document.body
+    const parentRect =
+      parent instanceof HTMLElement
+        ? parent.getBoundingClientRect()
+        : this.element.offsetParent?.getBoundingClientRect()
     const offsetLeft = parentRect ? btnRect.left - parentRect.left : btnRect.left
 
-    this.panel.style.top = `${offsetTop}px`
-    this.panel.style.left = `${offsetLeft}px`
-
-    const parent = this.element.offsetParent ?? this.element.parentElement ?? document.body
+    // Temporarily append to measure height, then decide direction
+    this.panel.style.visibility = 'hidden'
     parent.appendChild(this.panel)
+    const panelHeight = this.panel.offsetHeight
+
+    const spaceBelow = parentRect
+      ? parentRect.bottom - btnRect.bottom
+      : window.innerHeight - btnRect.bottom
+    const openUpward = spaceBelow < panelHeight + 8
+
+    if (openUpward) {
+      const offsetBottom = parentRect
+        ? parentRect.bottom - btnRect.top
+        : window.innerHeight - btnRect.top
+      this.panel.style.bottom = `${offsetBottom}px`
+      this.panel.style.top = ''
+      this.panel.style.marginTop = ''
+      this.panel.style.marginBottom = '4px'
+    } else {
+      const offsetTop = parentRect ? btnRect.bottom - parentRect.top : btnRect.bottom
+      this.panel.style.top = `${offsetTop}px`
+    }
+    this.panel.style.left = `${offsetLeft}px`
+    this.panel.style.visibility = ''
   }
 
   private toggle(): void {
