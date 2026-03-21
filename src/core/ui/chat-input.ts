@@ -120,7 +120,7 @@ export class ChatInput {
     ta.placeholder = 'Ask about this range, or leave empty to run presets'
     ta.rows = 1
     ta.style.cssText = `
-      flex: 1; box-sizing: border-box;
+      width: 100%; box-sizing: border-box;
       background: transparent; border: none; outline: none;
       color: var(--ao-text); font-size: 14px; font-family: inherit;
       line-height: 20px; resize: none; padding: 2px 4px; cursor: text;
