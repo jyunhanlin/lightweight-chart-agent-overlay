@@ -7,6 +7,8 @@ import { SettingsPanel } from './settings-panel'
 const ERROR_DISMISS_MS = 5000
 const MIN_HEIGHT = 40
 const MAX_HEIGHT = 140
+const SUBMIT_ACTIVE_BG = '#2196f3'
+const SUBMIT_INACTIVE_BG = '#555'
 
 export interface ChatInputOptions {
   readonly availableModels?: readonly ModelOption[]
@@ -28,6 +30,8 @@ export class ChatInput {
   private presetDropdown: Dropdown | null = null
   private readonly dropdownManager: DropdownManager
   private settingsPanel: SettingsPanel | null = null
+  private submitBtn: HTMLButtonElement | null = null
+  private updateSubmitState: (() => void) | null = null
   private errorTimer: ReturnType<typeof setTimeout> | null = null
 
   onSubmit: ((text: string) => void) | null = null
@@ -45,7 +49,7 @@ export class ChatInput {
 
     const toolbar = this.buildToolbar()
 
-    // ── Input row (textarea + ⌘↵ hint) ──────────────────────────────────────
+    // ── Input row (textarea + submit button) ────────────────────────────────
     const inputRow = document.createElement('div')
     inputRow.style.cssText = `
       display: flex; align-items: flex-end; gap: 6px;
@@ -53,11 +57,37 @@ export class ChatInput {
     `
     inputRow.appendChild(this.textarea)
 
-    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
-    const hint = document.createElement('span')
-    hint.textContent = `${modKey}\u21b5`
-    hint.style.cssText = `color: var(--ao-hint); font-size: 11px; flex-shrink: 0; padding-bottom: 2px;`
-    inputRow.appendChild(hint)
+    const submitBtn = document.createElement('button')
+    submitBtn.setAttribute('data-agent-overlay-submit', '')
+    submitBtn.textContent = '\u2191' // ↑
+    submitBtn.style.cssText = `
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: ${SUBMIT_INACTIVE_BG}; color: #fff;
+      font-size: 14px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      font-family: inherit; flex-shrink: 0;
+    `
+    this.submitBtn = submitBtn
+
+    const updateSubmitState = () => {
+      const hasText = this.textarea.value.trim().length > 0
+      const hasPresets = this.presetDropdown ? this.presetDropdown.getSelected().length > 0 : false
+      submitBtn.style.background = hasText || hasPresets ? SUBMIT_ACTIVE_BG : SUBMIT_INACTIVE_BG
+    }
+    this.textarea.addEventListener('input', updateSubmitState)
+    this.updateSubmitState = updateSubmitState
+
+    submitBtn.addEventListener('click', () => {
+      const value = this.textarea.value.trim()
+      if (value) {
+        this.clearError()
+        this.onSubmit?.(value)
+        this.textarea.value = ''
+        updateSubmitState()
+      }
+    })
+
+    inputRow.appendChild(submitBtn)
 
     this.containerEl.appendChild(toolbar)
     this.containerEl.appendChild(inputRow)
@@ -217,6 +247,10 @@ export class ChatInput {
   setLoading(loading: boolean): void {
     this.textarea.disabled = loading
     this.textarea.style.pointerEvents = loading ? 'none' : 'auto'
+    if (this.submitBtn) {
+      this.submitBtn.disabled = loading
+      this.submitBtn.style.opacity = loading ? '0.5' : '1'
+    }
   }
 
   openSettings(message?: string): void {
