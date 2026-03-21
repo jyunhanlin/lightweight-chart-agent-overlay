@@ -319,13 +319,19 @@ export class ChatPanel {
 
     if (this.isCompact) {
       wrapper.style.position = 'absolute'
-      wrapper.style.inset = '0'
+      // Clear individual longhands BEFORE setting inset shorthand
+      // (setting inset first then clearing longhands breaks the shorthand)
       wrapper.style.width = ''
       wrapper.style.height = ''
       wrapper.style.left = ''
       wrapper.style.top = ''
       wrapper.style.right = ''
+      wrapper.style.bottom = ''
       wrapper.style.transform = ''
+      wrapper.style.top = '0'
+      wrapper.style.right = '0'
+      wrapper.style.bottom = '0'
+      wrapper.style.left = '0'
       wrapper.style.borderRadius = '0'
       wrapper.style.paddingTop = 'env(safe-area-inset-top)'
       wrapper.style.paddingBottom = 'env(safe-area-inset-bottom)'
@@ -339,7 +345,8 @@ export class ChatPanel {
       this.attachViewportListener()
     } else {
       wrapper.style.position = 'absolute'
-      wrapper.style.inset = ''
+      wrapper.style.bottom = ''
+      wrapper.style.right = ''
       wrapper.style.width = `${DEFAULT_WIDTH}px`
       wrapper.style.height = `${DEFAULT_HEIGHT}px`
       wrapper.style.borderRadius = '6px'

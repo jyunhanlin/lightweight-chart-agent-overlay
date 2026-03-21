@@ -397,7 +397,10 @@ describe('ChatPanel', () => {
 
       const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
       expect(wrapper.style.position).toBe('absolute')
-      expect(wrapper.style.inset).toBe('0px')
+      expect(wrapper.style.top).toBe('0px')
+      expect(wrapper.style.left).toBe('0px')
+      expect(wrapper.style.right).toBe('0px')
+      expect(wrapper.style.bottom).toBe('0px')
     })
 
     it('setCompact(false) restores floating window', () => {
@@ -407,7 +410,7 @@ describe('ChatPanel', () => {
       panel.setCompact(false)
 
       const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
-      expect(wrapper.style.inset).not.toBe('0px')
+      expect(wrapper.style.bottom).toBe('')
       expect(wrapper.style.width).toBe('420px')
     })
 
@@ -429,7 +432,8 @@ describe('ChatPanel', () => {
 
       const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
       expect(wrapper.style.position).toBe('absolute')
-      expect(wrapper.style.inset).toBe('0px')
+      expect(wrapper.style.top).toBe('0px')
+      expect(wrapper.style.left).toBe('0px')
     })
 
     it('divider is hidden in compact mode', () => {
