@@ -78,13 +78,7 @@ export class ChatInput {
     this.updateSubmitState = updateSubmitState
 
     submitBtn.addEventListener('click', () => {
-      const value = this.textarea.value.trim()
-      if (value) {
-        this.clearError()
-        this.onSubmit?.(value)
-        this.textarea.value = ''
-        updateSubmitState()
-      }
+      this.handleSubmit()
     })
 
     const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
@@ -139,13 +133,7 @@ export class ChatInput {
     ta.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        const value = ta.value.trim()
-        if (value) {
-          this.clearError()
-          ta.value = ''
-          autoGrow()
-          this.onSubmit?.(value)
-        }
+        this.handleSubmit()
       }
     })
 
@@ -283,6 +271,25 @@ export class ChatInput {
       this.errorDiv.style.display = 'none'
       this.errorTimer = null
     }, ERROR_DISMISS_MS)
+  }
+
+  private handleSubmit(): void {
+    const value = this.textarea.value.trim()
+    if (value) {
+      this.clearError()
+      this.onSubmit?.(value)
+      this.textarea.value = ''
+      this.textarea.style.height = `${MIN_HEIGHT}px`
+      this.updateSubmitState?.()
+    } else {
+      // Quick run: use selected presets' quickPrompt as the prompt
+      const selectedPresets = this.getSelectedPresets()
+      if (selectedPresets.length === 0) return
+      const quickPrompt = selectedPresets.map((p) => p.quickPrompt).join('\n')
+      this.clearError()
+      this.onSubmit?.(quickPrompt)
+      this.updateSubmitState?.()
+    }
   }
 
   private clearError(): void {
