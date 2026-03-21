@@ -431,12 +431,13 @@ export class ChatPanel {
         if (!dividerDragging) divider.style.background = ''
       })
 
+      let initialHeight = 0
       let startY = 0
       let startHeight = 0
 
       const onMove = (e: MouseEvent) => {
         const delta = startY - e.clientY
-        const newHeight = Math.max(60, Math.min(300, startHeight + delta))
+        const newHeight = Math.max(initialHeight, Math.min(400, startHeight + delta))
         chatInputContainer.style.height = `${newHeight}px`
       }
       const onUp = () => {
@@ -451,6 +452,7 @@ export class ChatPanel {
         dividerDragging = true
         startY = e.clientY
         startHeight = chatInputContainer.offsetHeight
+        if (initialHeight === 0) initialHeight = startHeight
         document.addEventListener('mousemove', onMove)
         document.addEventListener('mouseup', onUp)
       })
