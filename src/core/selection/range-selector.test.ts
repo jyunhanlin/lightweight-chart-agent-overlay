@@ -1,6 +1,35 @@
 // src/core/selection/range-selector.test.ts
 import { RangeSelector } from './range-selector'
 
+function createTouchEvent(
+  type: string,
+  clientX: number,
+  clientY: number,
+  target: EventTarget = document.body,
+): TouchEvent {
+  const touch = {
+    identifier: 1,
+    clientX,
+    clientY,
+    pageX: clientX,
+    pageY: clientY,
+    screenX: clientX,
+    screenY: clientY,
+    radiusX: 0,
+    radiusY: 0,
+    rotationAngle: 0,
+    force: 1,
+    target,
+  } as Touch
+
+  return new TouchEvent(type, {
+    touches: type === 'touchend' ? [] : [touch],
+    changedTouches: [touch],
+    bubbles: true,
+    cancelable: true,
+  })
+}
+
 function createMockChart() {
   const coordinateToTime = vi.fn((x: number) => x * 10)
   const el = document.createElement('div')
@@ -20,9 +49,16 @@ function createMockSeries() {
   }
 }
 
-function fireMouseEvent(el: HTMLElement, type: string, clientX: number) {
-  const event = new MouseEvent(type, { clientX, clientY: 50, bubbles: true })
-  el.dispatchEvent(event)
+function fireMouseDown(el: HTMLElement, clientX: number) {
+  el.dispatchEvent(new MouseEvent('mousedown', { clientX, clientY: 50, bubbles: true }))
+}
+
+function fireMouseMove(clientX: number) {
+  document.dispatchEvent(new MouseEvent('mousemove', { clientX, clientY: 50, bubbles: true }))
+}
+
+function fireMouseUp(clientX: number) {
+  document.dispatchEvent(new MouseEvent('mouseup', { clientX, clientY: 50, bubbles: true }))
 }
 
 describe('RangeSelector', () => {
@@ -40,9 +76,9 @@ describe('RangeSelector', () => {
     const onSelect = vi.fn()
     selector.onSelect = onSelect
     selector.setEnabled(true)
-    fireMouseEvent(chart.el, 'mousedown', 10)
-    fireMouseEvent(chart.el, 'mousemove', 50)
-    fireMouseEvent(chart.el, 'mouseup', 50)
+    fireMouseDown(chart.el, 10)
+    fireMouseMove(50)
+    fireMouseUp(50)
     expect(onSelect).toHaveBeenCalledWith({ from: 100, to: 500 })
   })
 
@@ -53,9 +89,9 @@ describe('RangeSelector', () => {
     const onSelect = vi.fn()
     selector.onSelect = onSelect
     // not enabled by default
-    fireMouseEvent(chart.el, 'mousedown', 10)
-    fireMouseEvent(chart.el, 'mousemove', 50)
-    fireMouseEvent(chart.el, 'mouseup', 50)
+    fireMouseDown(chart.el, 10)
+    fireMouseMove(50)
+    fireMouseUp(50)
     expect(onSelect).not.toHaveBeenCalled()
   })
 
@@ -66,8 +102,8 @@ describe('RangeSelector', () => {
     const onSelect = vi.fn()
     selector.onSelect = onSelect
     selector.setEnabled(true)
-    fireMouseEvent(chart.el, 'mousedown', 10)
-    fireMouseEvent(chart.el, 'mouseup', 10)
+    fireMouseDown(chart.el, 10)
+    fireMouseUp(10)
     expect(onSelect).not.toHaveBeenCalled()
   })
 
@@ -96,13 +132,13 @@ describe('RangeSelector', () => {
 
     // Enable, drag to create selection
     selector.setEnabled(true)
-    fireMouseEvent(chart.el, 'mousedown', 10)
-    fireMouseEvent(chart.el, 'mousemove', 50)
-    fireMouseEvent(chart.el, 'mouseup', 50)
+    fireMouseDown(chart.el, 10)
+    fireMouseMove(50)
+    fireMouseUp(50)
 
     // Disable, then click to dismiss
     selector.setEnabled(false)
-    fireMouseEvent(chart.el, 'mousedown', 30)
+    fireMouseDown(chart.el, 30)
     expect(onDismiss).toHaveBeenCalledOnce()
   })
 
@@ -131,9 +167,42 @@ describe('RangeSelector', () => {
     const onSelect = vi.fn()
     selector.onSelect = onSelect
     selector.setEnabled(true)
-    fireMouseEvent(chart.el, 'mousedown', 10)
-    fireMouseEvent(chart.el, 'mousemove', 50)
-    fireMouseEvent(chart.el, 'mouseup', 50)
+    fireMouseDown(chart.el, 10)
+    fireMouseMove(50)
+    fireMouseUp(50)
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('touch drag fires onSelect', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    selector.setEnabled(true)
+    const onSelect = vi.fn()
+    selector.onSelect = onSelect
+
+    const el = chart.el
+    el.dispatchEvent(createTouchEvent('touchstart', 100, 50, el))
+    document.dispatchEvent(createTouchEvent('touchmove', 200, 50, el))
+    document.dispatchEvent(createTouchEvent('touchend', 200, 50, el))
+
+    expect(onSelect).toHaveBeenCalled()
+  })
+
+  it('sets touch-action none when enabled', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    selector.setEnabled(true)
+    expect(chart.el.style.touchAction).toBe('none')
+  })
+
+  it('removes touch-action when disabled', () => {
+    const chart = createMockChart()
+    const series = createMockSeries()
+    const selector = new RangeSelector(chart as never, series as never)
+    selector.setEnabled(true)
+    selector.setEnabled(false)
+    expect(chart.el.style.touchAction).toBe('')
   })
 })

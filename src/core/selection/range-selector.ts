@@ -1,5 +1,6 @@
 // src/core/selection/range-selector.ts
 import type { TimeValue } from '../types'
+import { onPointerDown } from '../ui/pointer-events'
 import { SelectionPrimitive } from './selection-primitive'
 
 const MIN_DRAG_PX = 5
@@ -25,13 +26,10 @@ export class RangeSelector {
   private lastValidToTime: TimeValue | null = null
   private isDragging = false
   private _enabled = false
+  private readonly cleanupPointer: () => void
 
   onSelect: ((range: { from: TimeValue; to: TimeValue }) => void) | null = null
   onDismiss: (() => void) | null = null
-
-  private readonly handleMouseDown: (e: MouseEvent) => void
-  private readonly handleMouseMove: (e: MouseEvent) => void
-  private readonly handleMouseUp: (e: MouseEvent) => void
 
   constructor(chart: ChartLike, series: SeriesLike) {
     this.chart = chart
@@ -40,30 +38,31 @@ export class RangeSelector {
     this.primitive = new SelectionPrimitive()
     series.attachPrimitive(this.primitive)
 
-    this.handleMouseDown = (e: MouseEvent) => {
+    const onStart = (pos: { clientX: number; clientY: number }): void | false => {
       if (!this._enabled) {
         if (this.primitive.getRange()) {
           this.primitive.clearRange()
           this.onDismiss?.()
         }
-        return
+        return false
       }
       // Dismiss previous selection UI before starting a new one
       if (this.primitive.getRange()) {
         this.primitive.clearRange()
         this.onDismiss?.()
       }
-      const x = e.clientX - this.el.getBoundingClientRect().left
+      const x = pos.clientX - this.el.getBoundingClientRect().left
       const time = this.chart.timeScale().coordinateToTime(x)
-      if (time === null) return
+      if (time === null) return false
       this.startX = x
       this.startTime = time
       this.isDragging = false
     }
 
-    this.handleMouseMove = (e: MouseEvent) => {
+    const onMove = (pos: { clientX: number; clientY: number }): void => {
+      // Defensive guard — startX is always set when onMove fires (onStart succeeds)
       if (this.startX === null || this.startTime === null) return
-      const currentX = e.clientX - this.el.getBoundingClientRect().left
+      const currentX = pos.clientX - this.el.getBoundingClientRect().left
       if (!this.isDragging && Math.abs(currentX - this.startX) >= MIN_DRAG_PX) {
         this.isDragging = true
       }
@@ -75,10 +74,10 @@ export class RangeSelector {
       }
     }
 
-    this.handleMouseUp = (e: MouseEvent) => {
+    const onEnd = (pos: { clientX: number; clientY: number }): void => {
       if (this.startX === null || this.startTime === null) return
       if (this.isDragging) {
-        const endX = e.clientX - this.el.getBoundingClientRect().left
+        const endX = pos.clientX - this.el.getBoundingClientRect().left
         const toTime = this.chart.timeScale().coordinateToTime(endX) ?? this.lastValidToTime
         if (toTime !== null) {
           this.onSelect?.({ from: this.startTime, to: toTime })
@@ -90,9 +89,7 @@ export class RangeSelector {
       this.isDragging = false
     }
 
-    this.el.addEventListener('mousedown', this.handleMouseDown)
-    this.el.addEventListener('mousemove', this.handleMouseMove)
-    this.el.addEventListener('mouseup', this.handleMouseUp)
+    this.cleanupPointer = onPointerDown(this.el, { onStart, onMove, onEnd })
   }
 
   get enabled(): boolean {
@@ -105,6 +102,7 @@ export class RangeSelector {
       handleScroll: !enabled,
       handleScale: !enabled,
     })
+    this.el.style.touchAction = enabled ? 'none' : ''
     if (!enabled) {
       this.startX = null
       this.startTime = null
@@ -125,9 +123,8 @@ export class RangeSelector {
   }
 
   destroy(): void {
-    this.el.removeEventListener('mousedown', this.handleMouseDown)
-    this.el.removeEventListener('mousemove', this.handleMouseMove)
-    this.el.removeEventListener('mouseup', this.handleMouseUp)
+    this.cleanupPointer()
+    this.el.style.touchAction = ''
     this.series.detachPrimitive(this.primitive)
   }
 }
