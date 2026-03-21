@@ -1,5 +1,7 @@
 // src/core/ui/make-resizable.ts
 
+import { onPointerDown } from './pointer-events'
+
 export interface ResizeOptions {
   readonly minWidth?: number
   readonly minHeight?: number
@@ -7,6 +9,12 @@ export interface ResizeOptions {
   readonly maxHeight?: number
   /** Hit area width in px, default: 6 */
   readonly edges?: number
+}
+
+export interface ResizableHandle {
+  enable(): void
+  disable(): void
+  destroy(): void
 }
 
 type Direction = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
@@ -98,9 +106,9 @@ function createHandle(config: HandleConfig, isCorner: boolean): HTMLElement {
 
 /**
  * Makes an absolutely-positioned element resizable from all 4 edges and 4 corners.
- * Returns a cleanup function to remove handles and listeners.
+ * Returns a ResizableHandle with enable/disable/destroy methods.
  */
-export function makeResizable(element: HTMLElement, options?: ResizeOptions): () => void {
+export function makeResizable(element: HTMLElement, options?: ResizeOptions): ResizableHandle {
   const minWidth = options?.minWidth ?? 320
   const minHeight = options?.minHeight ?? 200
   const maxWidth = options?.maxWidth ?? Infinity
@@ -109,102 +117,115 @@ export function makeResizable(element: HTMLElement, options?: ResizeOptions): ()
 
   const CORNER_DIRECTIONS = new Set<Direction>(['nw', 'ne', 'sw', 'se'])
   const configs = buildHandleConfigs(edgePx)
-  const handles: HTMLElement[] = configs.map((cfg) =>
+  const handleEls: HTMLElement[] = configs.map((cfg) =>
     createHandle(cfg, CORNER_DIRECTIONS.has(cfg.direction)),
   )
 
-  for (const handle of handles) {
-    element.appendChild(handle)
+  for (const handleEl of handleEls) {
+    element.appendChild(handleEl)
   }
 
-  let startX = 0
-  let startY = 0
-  let startLeft = 0
-  let startTop = 0
-  let startWidth = 0
-  let startHeight = 0
-  let activeDirection: Direction | null = null
+  // Each handle binds its own pointer listener; cleanup functions are stored here
+  let cleanupFns: Array<() => void> = []
 
-  const onMouseMove = (e: MouseEvent) => {
-    if (activeDirection === null) return
+  function attachListeners(): void {
+    cleanupFns = configs.map((cfg, i) => {
+      const handleEl = handleEls[i]
+      const direction = cfg.direction
 
-    const dx = e.clientX - startX
-    const dy = e.clientY - startY
+      let startX = 0
+      let startY = 0
+      let startLeft = 0
+      let startTop = 0
+      let startWidth = 0
+      let startHeight = 0
 
-    let newLeft = startLeft
-    let newTop = startTop
-    let newWidth = startWidth
-    let newHeight = startHeight
+      return onPointerDown(handleEl, {
+        onStart(pos) {
+          pos.event.preventDefault()
+          pos.event.stopPropagation()
 
-    // Horizontal axis
-    if (activeDirection.includes('e')) {
-      newWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + dx))
-    } else if (activeDirection.includes('w')) {
-      const rawWidth = startWidth - dx
-      const clampedWidth = Math.min(maxWidth, Math.max(minWidth, rawWidth))
-      newLeft = startLeft + (startWidth - clampedWidth)
-      newWidth = clampedWidth
+          startX = pos.clientX
+          startY = pos.clientY
+
+          const rect = element.getBoundingClientRect()
+          startLeft = rect.left
+          startTop = rect.top
+          startWidth = rect.width
+          startHeight = rect.height
+
+          // Prefer inline style values when available, fall back to computed rect
+          if (element.style.left) startLeft = parseFloat(element.style.left)
+          if (element.style.top) startTop = parseFloat(element.style.top)
+          if (element.style.width) startWidth = parseFloat(element.style.width)
+          if (element.style.height) startHeight = parseFloat(element.style.height)
+        },
+
+        onMove(pos) {
+          const dx = pos.clientX - startX
+          const dy = pos.clientY - startY
+
+          let newLeft = startLeft
+          let newTop = startTop
+          let newWidth = startWidth
+          let newHeight = startHeight
+
+          // Horizontal axis
+          if (direction.includes('e')) {
+            newWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + dx))
+          } else if (direction.includes('w')) {
+            const rawWidth = startWidth - dx
+            const clampedWidth = Math.min(maxWidth, Math.max(minWidth, rawWidth))
+            newLeft = startLeft + (startWidth - clampedWidth)
+            newWidth = clampedWidth
+          }
+
+          // Vertical axis
+          if (direction.includes('s')) {
+            newHeight = Math.min(maxHeight, Math.max(minHeight, startHeight + dy))
+          } else if (direction.includes('n')) {
+            const rawHeight = startHeight - dy
+            const clampedHeight = Math.min(maxHeight, Math.max(minHeight, rawHeight))
+            newTop = startTop + (startHeight - clampedHeight)
+            newHeight = clampedHeight
+          }
+
+          element.style.left = `${newLeft}px`
+          element.style.top = `${newTop}px`
+          element.style.width = `${newWidth}px`
+          element.style.height = `${newHeight}px`
+        },
+
+        onEnd(_pos) {
+          // nothing extra needed; onPointerDown already cleans up document listeners
+        },
+      })
+    })
+  }
+
+  function detachListeners(): void {
+    for (const fn of cleanupFns) {
+      fn()
     }
-
-    // Vertical axis
-    if (activeDirection.includes('s')) {
-      newHeight = Math.min(maxHeight, Math.max(minHeight, startHeight + dy))
-    } else if (activeDirection.includes('n')) {
-      const rawHeight = startHeight - dy
-      const clampedHeight = Math.min(maxHeight, Math.max(minHeight, rawHeight))
-      newTop = startTop + (startHeight - clampedHeight)
-      newHeight = clampedHeight
-    }
-
-    element.style.left = `${newLeft}px`
-    element.style.top = `${newTop}px`
-    element.style.width = `${newWidth}px`
-    element.style.height = `${newHeight}px`
+    cleanupFns = []
   }
 
-  const onMouseUp = () => {
-    activeDirection = null
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-  }
+  // Start enabled
+  attachListeners()
 
-  const onMouseDown = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    const direction = target.getAttribute('data-resize') as Direction | null
-    if (direction === null) return
-
-    e.preventDefault()
-    e.stopPropagation()
-
-    startX = e.clientX
-    startY = e.clientY
-
-    const rect = element.getBoundingClientRect()
-    startLeft = rect.left
-    startTop = rect.top
-    startWidth = rect.width
-    startHeight = rect.height
-
-    // Prefer inline style values when available, fall back to computed rect
-    if (element.style.left) startLeft = parseFloat(element.style.left)
-    if (element.style.top) startTop = parseFloat(element.style.top)
-    if (element.style.width) startWidth = parseFloat(element.style.width)
-    if (element.style.height) startHeight = parseFloat(element.style.height)
-
-    activeDirection = direction
-
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-  }
-
-  element.addEventListener('mousedown', onMouseDown)
-
-  return () => {
-    element.removeEventListener('mousedown', onMouseDown)
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-    for (const handle of handles) {
-      handle.remove()
-    }
+  return {
+    enable() {
+      detachListeners()
+      attachListeners()
+    },
+    disable() {
+      detachListeners()
+    },
+    destroy() {
+      detachListeners()
+      for (const handleEl of handleEls) {
+        handleEl.remove()
+      }
+    },
   }
 }

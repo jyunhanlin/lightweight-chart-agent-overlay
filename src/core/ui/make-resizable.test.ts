@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { makeResizable } from './make-resizable'
+import { makeResizable, type ResizableHandle } from './make-resizable'
 
 function createPositionedElement(width = 400, height = 300): HTMLElement {
   const el = document.createElement('div')
@@ -27,24 +27,26 @@ function simulateResize(el: HTMLElement, direction: string, deltaX: number, delt
 
 describe('makeResizable', () => {
   let element: HTMLElement
-  let cleanup: () => void
+  let handle: ResizableHandle
 
   beforeEach(() => {
     element = createPositionedElement()
   })
 
   afterEach(() => {
-    cleanup?.()
+    handle?.destroy()
     element.remove()
   })
 
-  it('returns a cleanup function', () => {
-    cleanup = makeResizable(element)
-    expect(typeof cleanup).toBe('function')
+  it('returns a ResizableHandle with enable/disable/destroy', () => {
+    handle = makeResizable(element)
+    expect(typeof handle.enable).toBe('function')
+    expect(typeof handle.disable).toBe('function')
+    expect(typeof handle.destroy).toBe('function')
   })
 
   it('creates 8 handle elements in the DOM', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     const handles = element.querySelectorAll('[data-resize]')
     expect(handles).toHaveLength(8)
     const directions = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se']
@@ -54,7 +56,7 @@ describe('makeResizable', () => {
   })
 
   it('east resize: width increases, left unchanged', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     const initialLeft = element.style.left
     simulateResize(element, 'e', 50, 0)
     expect(element.style.width).toBe('450px')
@@ -62,14 +64,14 @@ describe('makeResizable', () => {
   })
 
   it('west resize: left decreases, width increases', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     simulateResize(element, 'w', -50, 0)
     expect(element.style.left).toBe('0px')
     expect(element.style.width).toBe('450px')
   })
 
   it('south resize: height increases, top unchanged', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     const initialTop = element.style.top
     simulateResize(element, 's', 0, 50)
     expect(element.style.height).toBe('350px')
@@ -77,14 +79,14 @@ describe('makeResizable', () => {
   })
 
   it('north resize: top decreases, height increases', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     simulateResize(element, 'n', 0, -50)
     expect(element.style.top).toBe('0px')
     expect(element.style.height).toBe('350px')
   })
 
   it('SE corner: both width and height increase', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     const initialLeft = element.style.left
     const initialTop = element.style.top
     simulateResize(element, 'se', 60, 40)
@@ -95,7 +97,7 @@ describe('makeResizable', () => {
   })
 
   it('NW corner: left/top decrease, width/height increase', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     simulateResize(element, 'nw', -30, -20)
     expect(element.style.left).toBe('20px')
     expect(element.style.top).toBe('30px')
@@ -104,33 +106,49 @@ describe('makeResizable', () => {
   })
 
   it('respects minWidth: width cannot go below default (320)', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     simulateResize(element, 'e', -200, 0)
     expect(parseInt(element.style.width)).toBeGreaterThanOrEqual(320)
   })
 
   it('respects minHeight: height cannot go below default (200)', () => {
-    cleanup = makeResizable(element)
+    handle = makeResizable(element)
     simulateResize(element, 's', 0, -200)
     expect(parseInt(element.style.height)).toBeGreaterThanOrEqual(200)
   })
 
   it('respects custom minWidth option', () => {
-    cleanup = makeResizable(element, { minWidth: 100 })
+    handle = makeResizable(element, { minWidth: 100 })
     simulateResize(element, 'e', -350, 0)
     expect(parseInt(element.style.width)).toBeGreaterThanOrEqual(100)
   })
 
   it('respects custom minHeight option', () => {
-    cleanup = makeResizable(element, { minHeight: 50 })
+    handle = makeResizable(element, { minHeight: 50 })
     simulateResize(element, 's', 0, -300)
     expect(parseInt(element.style.height)).toBeGreaterThanOrEqual(50)
   })
 
-  it('cleanup removes all handles', () => {
-    cleanup = makeResizable(element)
+  it('destroy() removes all handles', () => {
+    handle = makeResizable(element)
     expect(element.querySelectorAll('[data-resize]')).toHaveLength(8)
-    cleanup()
+    handle.destroy()
     expect(element.querySelectorAll('[data-resize]')).toHaveLength(0)
+  })
+
+  it('disable() prevents resize', () => {
+    handle = makeResizable(element)
+    handle.disable()
+    const initialWidth = element.style.width
+    simulateResize(element, 'se', 60, 40)
+    expect(element.style.width).toBe(initialWidth)
+  })
+
+  it('enable() after disable() restores resize', () => {
+    handle = makeResizable(element)
+    handle.disable()
+    handle.enable()
+    simulateResize(element, 'e', 50, 0)
+    expect(element.style.width).toBe('450px')
   })
 })
