@@ -1,5 +1,23 @@
 # lightweight-chart-agent-overlay
 
+## 0.3.0
+
+### Minor Changes
+
+- Add Chat Panel for multi-turn conversation
+
+  - Replace prompt-input and explanation-popup with unified ChatPanel component
+  - Multi-turn follow-up questions within the same analysis context
+  - Per-turn overlay switching — click a turn to view its price lines and markers
+  - Window-like panel: draggable from header, resizable from all edges/corners, collapsible
+  - Draggable divider between toolbar and textarea to adjust input area height
+  - Auto-hide scrollbar on message list and textarea
+  - Add `chatMessages` to AnalyzeOptions for multi-turn provider support
+  - Add `updateLatest()` to HistoryStore for conversation updates
+  - Add `makeResizable` utility and `makeDraggable` handle option
+  - Breaking: `HistoryEntry` type changed (now uses `turns: ChatTurn[]`)
+  - New exports: `ChatMessage`, `ChatTurn` types
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "lightweight-chart-agent-overlay",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI-powered analysis overlay for TradingView Lightweight Charts",
   "type": "module",
   "main": "./dist/index.cjs",
