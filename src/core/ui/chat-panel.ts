@@ -36,6 +36,25 @@ function injectScrollbarStyles(): void {
     [data-agent-overlay-message-list]:hover::-webkit-scrollbar-thumb {
       background: rgba(255,255,255,0.3);
     }
+    [data-agent-overlay-chat] textarea {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    [data-agent-overlay-chat] textarea:focus {
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+    [data-agent-overlay-chat] textarea::-webkit-scrollbar {
+      width: 4px;
+    }
+    [data-agent-overlay-chat] textarea::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    [data-agent-overlay-chat] textarea::-webkit-scrollbar-thumb {
+      background: transparent; border-radius: 2px;
+    }
+    [data-agent-overlay-chat] textarea:focus::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+    }
   `
   document.head.appendChild(style)
 }

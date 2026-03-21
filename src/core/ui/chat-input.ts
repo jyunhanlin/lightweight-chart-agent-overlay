@@ -49,13 +49,27 @@ export class ChatInput {
 
     const toolbar = this.buildToolbar()
 
-    // ── Input row (textarea + submit button) ────────────────────────────────
+    // ── Input row (textarea + submit button fixed at bottom-right) ──────────
     const inputRow = document.createElement('div')
     inputRow.style.cssText = `
-      display: flex; align-items: flex-end; gap: 6px;
+      position: relative;
       padding: 8px 10px 6px;
     `
+    // Textarea needs right padding so text doesn't go under the button
+    this.textarea.style.paddingRight = '70px'
     inputRow.appendChild(this.textarea)
+
+    // Submit button + hint fixed at bottom-right of input row
+    const submitArea = document.createElement('div')
+    submitArea.style.cssText = `
+      position: absolute; bottom: 10px; right: 14px;
+      display: flex; align-items: center; gap: 4px;
+    `
+
+    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
+    const hint = document.createElement('span')
+    hint.textContent = `${modKey}\u21b5`
+    hint.style.cssText = 'color: var(--ao-hint); font-size: 11px;'
 
     const submitBtn = document.createElement('button')
     submitBtn.setAttribute('data-agent-overlay-submit', '')
@@ -81,13 +95,9 @@ export class ChatInput {
       this.handleSubmit()
     })
 
-    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
-    const hint = document.createElement('span')
-    hint.textContent = `${modKey}\u21b5`
-    hint.style.cssText =
-      'color: var(--ao-hint); font-size: 11px; flex-shrink: 0; padding-bottom: 2px;'
-    inputRow.appendChild(hint)
-    inputRow.appendChild(submitBtn)
+    submitArea.appendChild(hint)
+    submitArea.appendChild(submitBtn)
+    inputRow.appendChild(submitArea)
 
     this.containerEl.appendChild(toolbar)
     this.containerEl.appendChild(inputRow)
