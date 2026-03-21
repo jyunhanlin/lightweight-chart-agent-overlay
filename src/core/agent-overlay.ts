@@ -100,6 +100,13 @@ export function createAgentOverlay(
   })
   resizeObserver.observe(chartEl)
 
+  // Synchronous initial check — ResizeObserver callback is async
+  const initialWidth = chartEl.getBoundingClientRect().width
+  if (initialWidth > 0 && initialWidth < COMPACT_BREAKPOINT) {
+    isCompact = true
+    chatPanel.setCompact(true)
+  }
+
   let abortController: AbortController | null = null
   let currentHistoryIndex = -1
   let currentTurns: ChatTurn[] = []

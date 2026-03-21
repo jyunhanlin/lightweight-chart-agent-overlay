@@ -482,7 +482,7 @@ export class ChatPanel {
     const chatInputContainer = document.createElement('div')
     chatInputContainer.setAttribute('data-agent-overlay-chat-input', '')
     chatInputContainer.style.cssText = `
-      flex-shrink: 0; overflow-y: auto;
+      flex-shrink: 0; overflow: visible;
       border-top: 1px solid var(--ao-border);
     `
     wrapper.appendChild(chatInputContainer)
