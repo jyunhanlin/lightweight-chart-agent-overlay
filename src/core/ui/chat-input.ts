@@ -55,8 +55,6 @@ export class ChatInput {
       position: relative;
       padding: 8px 10px 6px;
     `
-    // Textarea needs right padding so text doesn't go under the button
-    this.textarea.style.paddingRight = '70px'
     inputRow.appendChild(this.textarea)
 
     // Submit button + hint fixed at bottom-right of input row
