@@ -422,7 +422,6 @@ export class ChatPanel {
       const divider = document.createElement('div')
       divider.style.cssText = `
         height: 4px; cursor: row-resize;
-        border-bottom: 1px solid var(--ao-border);
       `
       divider.addEventListener('mouseenter', () => {
         divider.style.background = 'var(--ao-divider)'
