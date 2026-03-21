@@ -9,6 +9,37 @@ import { ChatMessageList } from './chat-message-list'
 const DEFAULT_WIDTH = 420
 const DEFAULT_HEIGHT = 500
 
+function injectScrollbarStyles(): void {
+  const id = 'ao-scrollbar-style'
+  if (document.getElementById(id)) return
+  const style = document.createElement('style')
+  style.id = id
+  style.textContent = `
+    [data-agent-overlay-message-list] {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+      transition: scrollbar-color 0.3s;
+    }
+    [data-agent-overlay-message-list]:hover {
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+    [data-agent-overlay-message-list]::-webkit-scrollbar {
+      width: 6px;
+    }
+    [data-agent-overlay-message-list]::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    [data-agent-overlay-message-list]::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+    [data-agent-overlay-message-list]:hover::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.3);
+    }
+  `
+  document.head.appendChild(style)
+}
+
 export interface ChatPanelOptions {
   readonly availableModels?: readonly ModelOption[]
   readonly presets?: readonly AnalysisPreset[]
@@ -333,6 +364,7 @@ export class ChatPanel {
     wrapper.appendChild(stickyHeader)
 
     // ── Message list container ───────────────────────────────────────────────
+    injectScrollbarStyles()
     const msgListContainer = document.createElement('div')
     msgListContainer.setAttribute('data-agent-overlay-message-list', '')
     msgListContainer.style.cssText = `
