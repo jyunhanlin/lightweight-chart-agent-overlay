@@ -1,8 +1,6 @@
 # lightweight-chart-agent-overlay
 
-AI-powered analysis overlay for [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts) v5. Select a range of candlesticks, ask a question (or run preset analysis), and get structured results rendered as price lines, markers, and explanation popups — all driven by any LLM provider.
-
-https://github.com/user-attachments/assets/c017ce6f-0a67-43ec-9f0e-0b47c1a187c5
+AI-powered analysis overlay for [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts) v5. Select a range of candlesticks, ask a question, and get streaming AI analysis with overlays — then follow up in a multi-turn chat.
 
 ## Install
 
@@ -28,14 +26,20 @@ const agent = createAgentOverlay(chart, series, {
   }),
 })
 
-// Toggle selection mode (user drags to select a range)
 agent.setSelectionEnabled(true)
-
-// Cleanup
-agent.destroy()
 ```
 
-Call `setSelectionEnabled(true)` to enter selection mode, drag a range on the chart, then type a question or press **Cmd+Enter** to run the selected preset.
+Select a range → type a question or press **Cmd+Enter** to run presets → get streaming analysis with price lines and markers → ask follow-up questions in the same chat.
+
+## Features
+
+- **Multi-turn chat** — follow-up questions within the same analysis context
+- **Streaming responses** — real-time markdown rendering as the LLM generates
+- **Per-turn overlays** — each turn has its own price lines and markers; click a turn to switch
+- **Window-like panel** — draggable, resizable from all edges/corners, collapsible
+- **BYOK support** — end-users enter their own API key via settings UI
+- **Provider-agnostic** — built-in Anthropic/OpenAI providers, or implement your own
+- **Framework-agnostic** — vanilla JS core with React hook wrapper
 
 ## Providers
 
@@ -44,21 +48,13 @@ Call `setSelectionEnabled(true)` to enter selection mode, drag a range on the ch
 ```ts
 import { createAnthropicProvider } from 'lightweight-chart-agent-overlay/providers/anthropic'
 
-// Dev mode — hardcoded key (local development only)
 const provider = createAnthropicProvider({
-  apiKey: 'sk-ant-...',
+  apiKey: 'sk-ant-...',               // omit for BYOK mode
   availableModels: [
     { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
   ],
-})
-
-// BYOK mode — end-users enter their own key via Settings UI
-const provider = createAnthropicProvider({
-  availableModels: [
-    { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
-    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-  ],
+  maxTokens: 8192,                    // optional, default: 8192
 })
 ```
 
@@ -67,46 +63,21 @@ const provider = createAnthropicProvider({
 ```ts
 import { createOpenAIProvider } from 'lightweight-chart-agent-overlay/providers/openai'
 
-// Dev mode — hardcoded key (local development only)
 const provider = createOpenAIProvider({
-  apiKey: 'sk-...',
+  apiKey: 'sk-...',                    // omit for BYOK mode
   availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
-})
-
-// BYOK mode — end-users enter their own key via Settings UI
-const provider = createOpenAIProvider({
-  availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
-  baseURL: 'https://api.openai.com/v1/chat/completions',
+  maxTokens: 8192,                     // optional, default: 8192
 })
 ```
 
 ### Custom Provider
-
-Implement the `LLMProvider` interface:
 
 ```ts
 import type { LLMProvider } from 'lightweight-chart-agent-overlay'
 
 const myProvider: LLMProvider = {
   availableModels: [{ id: 'my-model', label: 'My Model' }],
-  async analyze(context, prompt, signal?, options?) {
-    return {
-      explanation: 'Analysis text', // or { sections: [{ label, content }] }
-      priceLines: [{ price: 100, title: 'Support', color: '#26a69a', lineStyle: 'dashed' }],
-      markers: [{ time: 1234567890, position: 'belowBar', shape: 'arrowUp', color: '#26a69a', text: 'Signal' }],
-    }
-  },
-}
-```
-
-#### Custom Provider with Auth Headers
-
-```ts
-const myProvider: LLMProvider = {
-  headers: async () => ({
-    Authorization: `Bearer ${await getSessionToken()}`,
-  }),
   async analyze(context, prompt, signal?, options?) {
     const res = await fetch('/api/analyze', {
       method: 'POST',
@@ -116,37 +87,24 @@ const myProvider: LLMProvider = {
     })
     return res.json()
   },
-}
-```
-
-The overlay resolves `headers` (static or async) before each `analyze()` call and passes the result via `options.headers`.
-
-#### Custom Provider with BYOK
-
-```ts
-const byokProvider: LLMProvider = {
-  requiresApiKey: true,
-  async analyze(context, prompt, signal?, options?) {
-    const res = await fetch('https://my-openai-compatible-api.com/v1/chat', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${options?.apiKey}` },
-      body: JSON.stringify({ context, prompt }),
-      signal,
-    })
-    return res.json()
+  // Optional: implement for streaming support
+  async *analyzeStream(context, prompt, signal?, options?) {
+    // yield text chunks as they arrive
   },
 }
 ```
 
-Setting `requiresApiKey: true` shows a settings gear icon in the prompt input toolbar where users can enter and manage their own API key.
+**Multi-turn support:** Built-in providers automatically handle `options.chatMessages` for multi-turn conversations. Custom providers can read `options.chatMessages` (a `ChatMessage[]` array) to support follow-up questions.
+
+**Auth headers:** Set `headers` (static or async function) on your provider. The overlay resolves headers before each call and passes them via `options.headers`.
+
+**BYOK:** Set `requiresApiKey: true` to show a settings gear icon where users can enter their own API key.
 
 ## Security
 
-**BYOK (Bring Your Own Key)** — Omit `apiKey` when creating a built-in provider (or set `requiresApiKey: true` on a custom provider) and a settings gear icon appears in the toolbar. Each end-user enters their own API key, which is stored in `localStorage`.
+**BYOK** — Omit `apiKey` when creating a built-in provider and a settings gear appears in the toolbar. Users enter their own key, stored in `localStorage`. Use [CSP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) in production.
 
-This is the recommended approach for shared apps — the app developer never exposes their own key. Note: `localStorage` is accessible to any JavaScript on the same origin, so an XSS vulnerability could leak stored keys. Use [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) headers in production.
-
-**Backend proxy** — For maximum security, use a custom provider that routes through your own backend:
+**Backend proxy** — For maximum security, route through your own backend:
 
 ```ts
 const provider: LLMProvider = {
@@ -154,15 +112,13 @@ const provider: LLMProvider = {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ context, prompt, options }),
+      body: JSON.stringify({ context, prompt }),
       signal,
     })
     return res.json()
   },
 }
 ```
-
-Your backend adds the API key server-side and forwards the request to the LLM API. This keeps secrets out of the browser entirely.
 
 ## React
 
@@ -173,9 +129,7 @@ function ChartWithAI({ chart, series }) {
   const { isAnalyzing, error, lastResult, setSelectionEnabled, clearOverlays } =
     useAgentOverlay(chart, series, { provider })
 
-  return (
-    <button onClick={() => setSelectionEnabled(true)}>Select Range</button>
-  )
+  return <button onClick={() => setSelectionEnabled(true)}>Select Range</button>
 }
 ```
 
@@ -183,53 +137,34 @@ function ChartWithAI({ chart, series }) {
 
 ```ts
 createAgentOverlay(chart, series, {
-  provider: myProvider,              // required: LLMProvider
-  theme: 'dark',                     // optional: 'dark' | 'light'
-  presets: DEFAULT_PRESETS,          // optional: override built-in presets
+  provider: myProvider,               // required
+  theme: 'dark',                      // optional: 'dark' | 'light'
+  presets: DEFAULT_PRESETS,           // optional: override built-in presets
   promptBuilder: defaultPromptBuilder, // optional: custom prompt construction
-  dataAccessor: (range) => data,     // optional: custom data source
-  apiKeyStorageKey: 'my-app-key',   // optional: localStorage key for BYOK (default: 'agent-overlay-api-key')
+  dataAccessor: (range) => data,      // optional: custom data source
+  apiKeyStorageKey: 'my-app-key',    // optional: localStorage key for BYOK
 })
 ```
 
-By default, candle data is extracted from `series.data()` filtered by the selected range. Use `dataAccessor` when your data lives outside the chart (e.g., a separate store with extra fields like volume from another API).
-
 ### Built-in Presets
 
-When no `presets` option is provided, these are used by default:
-
-| Preset | System Prompt Focus | Overlays |
-|--------|-------------------|----------|
+| Preset | Focus | Overlays |
+|--------|-------|----------|
 | Technical | Support/resistance, patterns, indicators | priceLines + markers |
-| Fundamental | Macro context, news, fundamentals | explanation only |
+| Fundamental | Macro context, news | explanation only |
 | Smart Money | Volume patterns, institutional behavior | markers |
 | Sentiment | Market sentiment from price action | explanation only |
-
-Custom presets:
-
-```ts
-import type { AnalysisPreset } from 'lightweight-chart-agent-overlay'
-
-const myPresets: AnalysisPreset[] = [
-  {
-    label: 'My Analysis',
-    systemPrompt: 'Instructions for the LLM on HOW to analyze',
-    quickPrompt: 'The actual question sent on quick run (Cmd+Enter with no text)',
-  },
-]
-```
 
 ## Events
 
 ```ts
 agent.on('analyze-start', () => {})
-agent.on('analyze-complete', (result: NormalizedAnalysisResult) => {})
-agent.on('selection-mode-change', (enabled: boolean) => {})
-agent.on('error', (err: Error) => {})
+agent.on('analyze-complete', (result) => {})
+agent.on('selection-mode-change', (enabled) => {})
+agent.on('error', (err) => {})
 
-// Each .on() returns an unsubscribe function
 const unsub = agent.on('analyze-complete', handler)
-unsub()
+unsub() // unsubscribe
 ```
 
 ## API Reference
@@ -239,71 +174,40 @@ unsub()
 | Method | Description |
 |--------|-------------|
 | `setSelectionEnabled(enabled)` | Toggle range selection mode |
-| `setTheme('light' \| 'dark')` | Switch theme dynamically (updates all UI via CSS variables) |
-| `clearOverlays()` | Remove all price lines, markers, and popups |
+| `setTheme('light' \| 'dark')` | Switch theme dynamically |
+| `clearOverlays()` | Remove all overlays and close chat |
 | `on(event, handler)` | Subscribe to events (returns unsubscribe fn) |
-| `destroy()` | Full cleanup — removes all listeners and DOM |
-
-### `AnalysisResult`
-
-The LLM response structure (returned by providers, validated internally):
-
-```ts
-{
-  explanation?: string | { sections: { label: string; content: string }[] }
-  priceLines?: { price: number; title?: string; color?: string; lineStyle?: 'solid' | 'dashed' | 'dotted' }[]
-  markers?: { time: number; position: 'aboveBar' | 'belowBar'; shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown'; color?: string; text?: string }[]
-}
-```
-
-### `PromptBuilder`
-
-Override how user input + presets are combined into LLM prompts:
-
-```ts
-import type { PromptBuilder } from 'lightweight-chart-agent-overlay'
-
-const myBuilder: PromptBuilder = {
-  build({ userPrompt, selectedPresets, isQuickRun }) {
-    return {
-      prompt: '...',                  // user message to LLM
-      additionalSystemPrompt: '...',  // appended to base system prompt
-    }
-  },
-}
-```
+| `destroy()` | Full cleanup |
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│ createAgentOverlay                              │
-│                                                 │
-│  RangeSelector ──► PromptInput ──► LLMProvider  │
-│       │                │               │        │
-│  SelectionPrimitive    │          AnalysisResult │
-│  (canvas highlight)    │               │        │
-│                        ▼               ▼        │
-│                  PromptBuilder   validateResult  │
-│                                        │        │
-│              ExplanationPopup ◄─── HistoryStore  │
-│              OverlayRenderer                    │
-│              (priceLines + markers)             │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ createAgentOverlay                           │
+│                                              │
+│  RangeSelector ──► ChatPanel ──► LLMProvider │
+│       │             │  │              │      │
+│  SelectionPrimitive │  │        AnalysisResult│
+│  (canvas highlight) │  │              │      │
+│                     │  │              ▼      │
+│    ChatInput ───────┘  │       parseResponse │
+│    ChatMessageList ────┘              │      │
+│                              validateResult  │
+│                                      │       │
+│              OverlayRenderer ◄── HistoryStore │
+│              (priceLines + markers)           │
+└──────────────────────────────────────────────┘
 ```
-
-**Key modules:**
 
 | Module | Purpose |
 |--------|---------|
-| `RangeSelector` | Mouse drag → time range selection on chart |
-| `PromptInput` | Textarea + model/preset dropdowns + submit |
-| `PromptBuilder` | Combines user text + preset systemPrompts |
+| `RangeSelector` | Mouse drag → time range selection |
+| `ChatPanel` | Unified chat UI (header + messages + input) |
+| `ChatInput` | Toolbar (model/preset/settings) + textarea |
+| `ChatMessageList` | Per-turn message rendering + streaming |
 | `LLMProvider` | Sends context + prompt to any LLM API |
-| `validateResult` | Normalizes LLM JSON (handles bare objects, nested fences) |
-| `OverlayRenderer` | Renders priceLines and markers on the chart |
-| `ExplanationPopup` | Displays structured analysis with history navigation |
-| `HistoryStore` | In-memory ring buffer (50 entries) for past analyses |
+| `OverlayRenderer` | Renders priceLines and markers on chart |
+| `HistoryStore` | In-memory conversation history (50 entries) |
 
 ## Development
 
@@ -316,7 +220,7 @@ pnpm check        # lint + format:check + typecheck
 pnpm build        # Build ESM + CJS via tsdown
 ```
 
-Set `VITE_ANTHROPIC_API_KEY` in `examples/vanilla/.env.local` to use real AI instead of the mock provider.
+Set `VITE_ANTHROPIC_API_KEY` in `examples/vanilla/.env.local` for real AI.
 
 ## License
 
