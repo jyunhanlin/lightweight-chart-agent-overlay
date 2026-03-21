@@ -264,12 +264,10 @@ export class ChatMessageList {
   setActiveTurn(index: number): void {
     for (const row of this.turns) {
       row.style.borderLeftColor = 'transparent'
-      row.style.background = 'transparent'
     }
     const target = this.turns[index]
     if (target) {
       target.style.borderLeftColor = 'var(--ao-bubble-bg)'
-      target.style.background = 'rgba(33, 150, 243, 0.08)'
     }
   }
 
