@@ -1,7 +1,7 @@
 // src/core/ui/chat-panel.ts
 import type { ChatTurn, AnalysisPreset, ModelOption } from '../types'
 import { clampToViewport, type UIPosition } from './calculate-position'
-import { makeDraggable } from './make-draggable'
+import { makeDraggable, type DraggableHandle } from './make-draggable'
 import { makeResizable } from './make-resizable'
 import { ChatInput } from './chat-input'
 import { ChatMessageList } from './chat-message-list'
@@ -170,7 +170,7 @@ export class ChatPanel {
   private chatInput: ChatInput | null = null
   private collapsed = false
 
-  private cleanupDrag: (() => void) | null = null
+  private cleanupDrag: DraggableHandle | null = null
   private cleanupResize: (() => void) | null = null
 
   private readonly handleEscape: (e: KeyboardEvent) => void
@@ -298,7 +298,7 @@ export class ChatPanel {
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private removeWrapperDirectly(): void {
-    this.cleanupDrag?.()
+    this.cleanupDrag?.destroy()
     this.cleanupDrag = null
     this.cleanupResize?.()
     this.cleanupResize = null

@@ -57,10 +57,10 @@ describe('makeDraggable', () => {
     expect(spy).toHaveBeenCalledWith('mousedown', expect.any(Function))
   })
 
-  it('should return cleanup function that removes listeners', () => {
+  it('should return handle with destroy() that removes listeners', () => {
     const spy = vi.spyOn(element, 'removeEventListener')
-    const cleanup = makeDraggable(element)
-    cleanup()
+    const handle = makeDraggable(element)
+    handle.destroy()
     expect(spy).toHaveBeenCalledWith('mousedown', expect.any(Function))
   })
 
@@ -181,7 +181,7 @@ describe('makeDraggable', () => {
     handle.style.cssText = 'width: 100px; height: 30px;'
     element.appendChild(handle)
 
-    const cleanup = makeDraggable(element, { handle })
+    const draggable = makeDraggable(element, { handle })
 
     // Mousedown on the element body (not handle) — should NOT drag
     element.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }))
@@ -200,7 +200,7 @@ describe('makeDraggable', () => {
     // The handle drag should have moved the element
     expect(leftAfterHandleDrag).not.toBe(leftAfterBodyDrag)
 
-    cleanup()
+    draggable.destroy()
   })
 
   it('exclude option still works when handle is not set', () => {
@@ -219,5 +219,33 @@ describe('makeDraggable', () => {
     expect(element.style.left).toBe('')
 
     document.dispatchEvent(new MouseEvent('mouseup'))
+  })
+
+  it('disable() stops drag from working', () => {
+    const handle = makeDraggable(element)
+
+    handle.disable()
+
+    // Attempt to drag after disable
+    element.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mouseup'))
+
+    expect(element.style.left).toBe('')
+  })
+
+  it('enable() after disable() restores drag', () => {
+    const handle = makeDraggable(element)
+
+    handle.disable()
+    handle.enable()
+
+    // Drag should work again
+    element.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 80 }))
+    document.dispatchEvent(new MouseEvent('mouseup'))
+
+    expect(element.style.left).toBe('90px')
+    expect(element.style.top).toBe('70px')
   })
 })
