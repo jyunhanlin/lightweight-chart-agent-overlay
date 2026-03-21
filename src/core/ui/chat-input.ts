@@ -61,7 +61,7 @@ export class ChatInput {
     const submitArea = document.createElement('div')
     submitArea.style.cssText = `
       position: absolute; bottom: 10px; right: 14px;
-      display: flex; align-items: center; gap: 4px;
+      display: flex; align-items: flex-end; gap: 4px;
     `
 
     const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
