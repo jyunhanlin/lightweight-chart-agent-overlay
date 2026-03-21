@@ -87,6 +87,12 @@ export class ChatInput {
       }
     })
 
+    const modKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl'
+    const hint = document.createElement('span')
+    hint.textContent = `${modKey}\u21b5`
+    hint.style.cssText =
+      'color: var(--ao-hint); font-size: 11px; flex-shrink: 0; padding-bottom: 2px;'
+    inputRow.appendChild(hint)
     inputRow.appendChild(submitBtn)
 
     this.containerEl.appendChild(toolbar)
