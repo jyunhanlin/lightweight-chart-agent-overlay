@@ -102,6 +102,17 @@ describe('createAgentOverlay', () => {
       return 0
     })
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    // jsdom does not provide ResizeObserver — stub a no-op by default
+    if (typeof ResizeObserver === 'undefined') {
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      )
+    }
   })
 
   it('returns AgentOverlay with expected methods', () => {
@@ -1194,6 +1205,55 @@ describe('createAgentOverlay', () => {
       expect(options2.chatMessages[0].role).toBe('user')
 
       el.remove()
+    })
+  })
+
+  describe('responsive compact mode', () => {
+    let _resizeCallback: ResizeObserverCallback
+    let mockObserver: {
+      observe: ReturnType<typeof vi.fn>
+      disconnect: ReturnType<typeof vi.fn>
+      unobserve: ReturnType<typeof vi.fn>
+    }
+
+    beforeEach(() => {
+      mockObserver = { observe: vi.fn(), disconnect: vi.fn(), unobserve: vi.fn() }
+      const capturedMockObserver = mockObserver
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: ResizeObserverCallback) {
+            _resizeCallback = cb
+          }
+          observe = capturedMockObserver.observe
+          disconnect = capturedMockObserver.disconnect
+          unobserve = capturedMockObserver.unobserve
+        },
+      )
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('observes the chart element', () => {
+      const { chart } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider()
+
+      const overlay = createAgentOverlay(chart as never, series as never, { provider })
+      expect(mockObserver.observe).toHaveBeenCalled()
+      overlay.destroy()
+    })
+
+    it('disconnects on destroy', () => {
+      const { chart } = createMockChart()
+      const series = createMockSeries()
+      const provider = createMockProvider()
+
+      const overlay = createAgentOverlay(chart as never, series as never, { provider })
+      overlay.destroy()
+      expect(mockObserver.disconnect).toHaveBeenCalled()
     })
   })
 })

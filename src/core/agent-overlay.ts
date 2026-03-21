@@ -85,6 +85,21 @@ export function createAgentOverlay(
     apiKeyStorageKey: options.apiKeyStorageKey,
   })
 
+  const COMPACT_BREAKPOINT = 480
+  let isCompact = false
+
+  const resizeObserver = new ResizeObserver((entries) => {
+    const entry = entries[0]
+    if (!entry) return
+    const width = entry.contentRect.width
+    const shouldBeCompact = width < COMPACT_BREAKPOINT
+    if (shouldBeCompact !== isCompact) {
+      isCompact = shouldBeCompact
+      chatPanel.setCompact(isCompact)
+    }
+  })
+  resizeObserver.observe(chartEl)
+
   let abortController: AbortController | null = null
   let currentHistoryIndex = -1
   let currentTurns: ChatTurn[] = []
@@ -375,6 +390,7 @@ export function createAgentOverlay(
 
   return {
     destroy() {
+      resizeObserver.disconnect()
       cancelInFlight()
       rangeSelector.destroy()
       chatPanel.destroy()
