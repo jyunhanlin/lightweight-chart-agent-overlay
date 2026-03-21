@@ -258,6 +258,10 @@ export class ChatInput {
     }
   }
 
+  closeDropdowns(): void {
+    this.dropdownManager.closeAll()
+  }
+
   showError(message: string): void {
     if (this.errorTimer !== null) {
       clearTimeout(this.errorTimer)

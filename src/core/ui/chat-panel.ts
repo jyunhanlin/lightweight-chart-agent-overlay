@@ -365,7 +365,11 @@ export class ChatPanel {
     this.chatInput = chatInput
 
     // Stop mousedown propagation (so chart selection doesn't interfere)
-    wrapper.addEventListener('mousedown', (e) => e.stopPropagation())
+    // But also close dropdowns when clicking non-dropdown areas within the panel
+    wrapper.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
+      this.chatInput?.closeDropdowns()
+    })
 
     this.container.appendChild(wrapper)
     this.wrapper = wrapper
