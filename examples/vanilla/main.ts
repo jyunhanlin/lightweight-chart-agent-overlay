@@ -88,8 +88,9 @@ fetchBTCData().then((data) => {
     badge.className = `mode-badge ${enabled ? 'on' : 'off'}`
   })
 
-  // Toggle selection mode with 'S' key (skip when typing in inputs)
-  let selectionEnabled = false
+  // Enable selection mode by default
+  let selectionEnabled = true
+  agent.setSelectionEnabled(true)
   document.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return
     if (e.key === 's' || e.key === 'S') {
