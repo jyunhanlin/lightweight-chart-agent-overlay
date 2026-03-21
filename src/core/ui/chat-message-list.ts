@@ -127,7 +127,7 @@ function buildTurnRow(turn: ChatTurn, index: number, onClick: (i: number) => voi
   const row = document.createElement('div')
   row.setAttribute('data-turn-index', String(index))
   row.style.cssText = `
-    border-left: 3px solid transparent;
+    border-left: 4px solid transparent;
     cursor: pointer;
   `
 
@@ -176,7 +176,7 @@ export class ChatMessageList {
     const row = document.createElement('div')
     row.setAttribute('data-turn-index', String(this.turns.length))
     row.style.cssText = `
-      border-left: 3px solid transparent;
+      border-left: 4px solid transparent;
       cursor: pointer;
     `
 
@@ -255,7 +255,7 @@ export class ChatMessageList {
     el.textContent = message
     el.style.cssText = `
       padding: 8px 12px; color: var(--ao-close); font-size: 12px;
-      background: var(--ao-tag-bg); border-left: 3px solid var(--ao-close);
+      background: var(--ao-tag-bg); border-left: 4px solid var(--ao-close);
       margin: 4px 0;
     `
     this.container.appendChild(el)
@@ -264,10 +264,12 @@ export class ChatMessageList {
   setActiveTurn(index: number): void {
     for (const row of this.turns) {
       row.style.borderLeftColor = 'transparent'
+      row.style.background = 'transparent'
     }
     const target = this.turns[index]
     if (target) {
       target.style.borderLeftColor = 'var(--ao-bubble-bg)'
+      target.style.background = 'rgba(33, 150, 243, 0.08)'
     }
   }
 
