@@ -49,18 +49,19 @@ export class ChatInput {
 
     const toolbar = this.buildToolbar()
 
-    // ── Input row (textarea + submit button fixed at bottom-right) ──────────
+    // ── Input row ──────────────────────────────────────────────────────────
+    this.containerEl.style.position = 'relative'
+
     const inputRow = document.createElement('div')
     inputRow.style.cssText = `
-      position: relative;
       padding: 8px 10px 6px;
     `
     inputRow.appendChild(this.textarea)
 
-    // Submit button + hint fixed at bottom-right of input row
+    // Submit button + hint pinned to container bottom-right
     const submitArea = document.createElement('div')
     submitArea.style.cssText = `
-      position: absolute; bottom: 10px; right: 14px;
+      position: absolute; bottom: 8px; right: 14px;
       display: flex; align-items: flex-end; gap: 4px;
     `
 
