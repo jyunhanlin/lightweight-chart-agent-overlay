@@ -99,6 +99,9 @@ export class ChatInput {
     this.containerEl.appendChild(inputRow)
     this.containerEl.appendChild(this.errorDiv)
 
+    // Initialize submit button state (presets may be pre-selected)
+    updateSubmitState()
+
     // Auto-open settings if BYOK key is missing
     if (this.settingsPanel && !this.settingsPanel.getApiKey()) {
       this.settingsPanel.open()
@@ -110,7 +113,7 @@ export class ChatInput {
 
   private buildTextarea(): HTMLTextAreaElement {
     const ta = document.createElement('textarea')
-    ta.placeholder = 'Ask a follow-up...'
+    ta.placeholder = 'Ask about this range, or leave empty to run presets'
     ta.rows = 1
     ta.style.cssText = `
       flex: 1; box-sizing: border-box;
