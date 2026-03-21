@@ -392,11 +392,50 @@ export class ChatPanel {
     wrapper.appendChild(msgListContainer)
     this.messageListContainer = msgListContainer
 
+    // ── Resize divider between message list and input ────────────────────────
+    const divider = document.createElement('div')
+    divider.style.cssText = `
+      height: 4px; cursor: row-resize; flex-shrink: 0;
+      border-top: 1px solid var(--ao-border);
+    `
+    divider.addEventListener('mouseenter', () => {
+      divider.style.background = 'var(--ao-divider)'
+    })
+    divider.addEventListener('mouseleave', () => {
+      if (!dividerDragging) divider.style.background = ''
+    })
+
+    let dividerDragging = false
+    let dividerStartY = 0
+    let inputStartHeight = 0
+
+    const onDividerMove = (e: MouseEvent) => {
+      const delta = dividerStartY - e.clientY
+      const newHeight = Math.max(60, Math.min(300, inputStartHeight + delta))
+      chatInputContainer.style.height = `${newHeight}px`
+    }
+    const onDividerUp = () => {
+      dividerDragging = false
+      divider.style.background = ''
+      document.removeEventListener('mousemove', onDividerMove)
+      document.removeEventListener('mouseup', onDividerUp)
+    }
+    divider.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      dividerDragging = true
+      dividerStartY = e.clientY
+      inputStartHeight = chatInputContainer.offsetHeight
+      document.addEventListener('mousemove', onDividerMove)
+      document.addEventListener('mouseup', onDividerUp)
+    })
+    wrapper.appendChild(divider)
+
     // ── Chat input container ─────────────────────────────────────────────────
     const chatInputContainer = document.createElement('div')
     chatInputContainer.setAttribute('data-agent-overlay-chat-input', '')
     chatInputContainer.style.cssText = `
-      border-top: 1px solid var(--ao-border); flex-shrink: 0;
+      flex-shrink: 0; overflow-y: auto;
     `
     wrapper.appendChild(chatInputContainer)
     this.chatInputContainer = chatInputContainer
