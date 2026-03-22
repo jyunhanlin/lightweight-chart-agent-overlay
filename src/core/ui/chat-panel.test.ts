@@ -444,5 +444,24 @@ describe('ChatPanel', () => {
       const divider = container.querySelector('[data-chat-divider]') as HTMLElement
       expect(divider.style.display).toBe('none')
     })
+
+    it('collapse and expand restores fullscreen in compact mode', () => {
+      const panel = new ChatPanel(container)
+      panel.show({ currentIndex: 0, totalCount: 1 })
+      panel.setCompact(true)
+
+      const wrapper = container.querySelector('[data-agent-overlay-chat]') as HTMLElement
+
+      // Collapse
+      const collapseBtn = wrapper.querySelector('[data-agent-overlay-collapse]') as HTMLElement
+      collapseBtn.click()
+      expect(wrapper.style.height).toBe('auto')
+      expect(wrapper.style.bottom).toBe('')
+
+      // Expand — should restore fullscreen, not 500px
+      collapseBtn.click()
+      expect(wrapper.style.bottom).toBe('0px')
+      expect(wrapper.style.height).toBe('')
+    })
   })
 })

@@ -313,6 +313,48 @@ describe('Dropdown', () => {
       d.destroy()
     })
 
+    it('opens upward when insufficient space below', () => {
+      const d = new Dropdown({ items: ITEMS })
+      container.appendChild(d.element)
+
+      // Mock button near bottom of viewport
+      vi.spyOn(d.element, 'getBoundingClientRect').mockReturnValue({
+        top: 750,
+        bottom: 780,
+        left: 10,
+        right: 100,
+        width: 90,
+        height: 30,
+        x: 10,
+        y: 750,
+        toJSON: () => {},
+      })
+
+      // Mock offsetHeight on the panel so space calculation works
+      // (jsdom returns 0 for offsetHeight by default)
+      const origCreateElement = document.createElement.bind(document)
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = origCreateElement(tag)
+        if (tag === 'div') {
+          Object.defineProperty(el, 'offsetHeight', { value: 100, configurable: true })
+        }
+        return el
+      })
+
+      // innerHeight = 800 → only 20px below button, not enough for 100px panel
+      vi.stubGlobal('innerHeight', 800)
+
+      getTrigger(d).click()
+      const panel = getPanel()
+      expect(panel).not.toBeNull()
+      expect(panel!.style.bottom).not.toBe('')
+      expect(panel!.style.top).toBe('')
+
+      d.destroy()
+      vi.restoreAllMocks()
+      vi.unstubAllGlobals()
+    })
+
     it('should clean up listeners on destroy', () => {
       const removeSpy = vi.spyOn(document, 'removeEventListener')
       const d = new Dropdown({ items: ITEMS })
