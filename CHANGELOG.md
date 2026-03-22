@@ -1,5 +1,21 @@
 # lightweight-chart-agent-overlay
 
+## 0.3.1
+
+### Patch Changes
+
+- 87bb782: Add responsive layout and touch support
+
+  - Compact mode: ChatPanel fills chart container when width < 480px (auto-detected via ResizeObserver)
+  - Touch support: range selection, panel drag, and all interactions work with touch events
+  - Unified `onPointerDown` helper for mouse + touch with lazy-attach pattern
+  - `makeDraggable` / `makeResizable` now return handle objects with `enable()` / `disable()` / `destroy()`
+  - Dropdown opens upward when insufficient space below
+  - Virtual keyboard handling via `visualViewport` API
+  - Safe area insets for notched devices
+  - Touch propagation fixes across dropdown, history button, settings panel
+  - CI: release workflow now waits for CI to pass before publishing
+
 ## 0.3.0
 
 ### Minor Changes
