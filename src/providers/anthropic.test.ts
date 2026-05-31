@@ -283,45 +283,51 @@ describe('createAnthropicProvider', () => {
 
   it('includes temperature only when set (construction or analyzeOptions)', async () => {
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(MOCK_CONTEXT, 'q')
+    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(
+      MOCK_CONTEXT,
+      'q',
+    )
     expect(lastBody().temperature).toBeUndefined()
 
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS, temperature: 0.3 }).analyze(
-      MOCK_CONTEXT,
-      'q',
-    )
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      temperature: 0.3,
+    }).analyze(MOCK_CONTEXT, 'q')
     expect(lastBody().temperature).toBe(0.3)
 
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS, temperature: 0.3 }).analyze(
-      MOCK_CONTEXT,
-      'q',
-      undefined,
-      { temperature: 0.9 },
-    )
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      temperature: 0.3,
+    }).analyze(MOCK_CONTEXT, 'q', undefined, { temperature: 0.9 })
     expect(lastBody().temperature).toBe(0.9)
   })
 
   it('maxTokens precedence: analyzeOptions > construction > 8192', async () => {
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(MOCK_CONTEXT, 'q')
+    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(
+      MOCK_CONTEXT,
+      'q',
+    )
     expect(lastBody().max_tokens).toBe(8192)
 
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS, maxTokens: 1000 }).analyze(
-      MOCK_CONTEXT,
-      'q',
-    )
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      maxTokens: 1000,
+    }).analyze(MOCK_CONTEXT, 'q')
     expect(lastBody().max_tokens).toBe(1000)
 
     mockOnce()
-    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS, maxTokens: 1000 }).analyze(
-      MOCK_CONTEXT,
-      'q',
-      undefined,
-      { maxTokens: 500 },
-    )
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      maxTokens: 1000,
+    }).analyze(MOCK_CONTEXT, 'q', undefined, { maxTokens: 500 })
     expect(lastBody().max_tokens).toBe(500)
   })
 })
