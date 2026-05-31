@@ -97,6 +97,6 @@
   "license": "MIT",
   "dependencies": {
     "dompurify": "^3.3.3",
-    "marked": "^17.0.4"
+    "marked": "^18.0.4"
   }
 }
