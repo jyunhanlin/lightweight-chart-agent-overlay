@@ -9,15 +9,17 @@ import type {
 } from '../core/types'
 import { parseStreamedResponse } from './parse-response'
 import { parseSSE } from './parse-sse'
-import { DEFAULT_SYSTEM_PROMPT } from './default-system-prompt'
+import { DEFAULT_PERSONA, OVERLAY_CONTRACT } from './default-system-prompt'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface OpenAIProviderOptions {
   readonly apiKey?: string
-  readonly systemPrompt?: string
+  readonly systemPrompt?: string // persona (defaults to DEFAULT_PERSONA); contract is auto-injected
   readonly baseURL?: string
   readonly maxTokens?: number
+  readonly temperature?: number
+  readonly injectOverlayContract?: boolean // default true
   readonly availableModels: readonly ModelOption[]
 }
 
@@ -27,9 +29,21 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
   }
   const constructorApiKey = options.apiKey
   const model = options.availableModels[0].id
-  const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
+  const persona = options.systemPrompt ?? DEFAULT_PERSONA
   const baseURL = options.baseURL ?? API_URL
   const maxTokens = options.maxTokens ?? 8192
+  const temperature = options.temperature
+  const injectOverlayContract = options.injectOverlayContract ?? true
+
+  function composeSystemPrompt(analyzeOptions?: AnalyzeOptions): string {
+    return [
+      analyzeOptions?.systemPrompt ?? persona,
+      analyzeOptions?.additionalSystemPrompt,
+      injectOverlayContract ? OVERLAY_CONTRACT : undefined,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+  }
 
   return {
     availableModels: options.availableModels,
@@ -45,9 +59,9 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         throw new Error('API key is required. Provide it via constructor or AnalyzeOptions.')
       }
       const requestModel = analyzeOptions?.model ?? model
-      const finalSystemPrompt = analyzeOptions?.additionalSystemPrompt
-        ? `${systemPrompt}\n\n${analyzeOptions.additionalSystemPrompt}`
-        : systemPrompt
+      const finalSystemPrompt = composeSystemPrompt(analyzeOptions)
+      const requestMaxTokens = analyzeOptions?.maxTokens ?? maxTokens
+      const requestTemperature = analyzeOptions?.temperature ?? temperature
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
@@ -66,7 +80,8 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         body: JSON.stringify({
           model: requestModel,
           messages,
-          max_tokens: maxTokens,
+          max_tokens: requestMaxTokens,
+          ...(requestTemperature !== undefined ? { temperature: requestTemperature } : {}),
         }),
         signal,
       })
@@ -97,9 +112,9 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         throw new Error('API key is required. Provide it via constructor or AnalyzeOptions.')
       }
       const requestModel = analyzeOptions?.model ?? model
-      const finalSystemPrompt = analyzeOptions?.additionalSystemPrompt
-        ? `${systemPrompt}\n\n${analyzeOptions.additionalSystemPrompt}`
-        : systemPrompt
+      const finalSystemPrompt = composeSystemPrompt(analyzeOptions)
+      const requestMaxTokens = analyzeOptions?.maxTokens ?? maxTokens
+      const requestTemperature = analyzeOptions?.temperature ?? temperature
 
       const userMessage = `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${prompt}`
 
@@ -118,7 +133,8 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LLMProvide
         body: JSON.stringify({
           model: requestModel,
           messages,
-          max_tokens: maxTokens,
+          max_tokens: requestMaxTokens,
+          ...(requestTemperature !== undefined ? { temperature: requestTemperature } : {}),
           stream: true,
         }),
         signal,
