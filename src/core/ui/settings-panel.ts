@@ -120,6 +120,7 @@ export class SettingsPanel {
     if (this.settingsStore) {
       const settings = this.settingsStore.get()
 
+      // Reset is eager: it deletes the stored field immediately (not deferred to Save).
       personaInput = document.createElement('textarea')
       personaInput.setAttribute('data-agent-overlay-settings-system-prompt', '')
       personaInput.rows = 4
