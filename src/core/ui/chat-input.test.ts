@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChatInput } from './chat-input'
 import type { ModelOption, AnalysisPreset } from '../types'
+import { createSettingsStore } from '../settings-store'
 
 const MODELS: readonly ModelOption[] = [
   { id: 'gpt-4o', label: 'GPT-4o' },
@@ -173,11 +174,26 @@ describe('ChatInput', () => {
     input.destroy()
   })
 
-  it('openSettings() is a no-op when requiresApiKey is false', () => {
-    const input = new ChatInput(container)
+  it('renders the settings gear even when requiresApiKey is false', () => {
+    const input = new ChatInput(container, { settingsStore: createSettingsStore('t-settings') })
+    expect(container.querySelector('[data-agent-overlay-settings-trigger]')).not.toBeNull()
+    input.destroy()
+    localStorage.clear()
+  })
+
+  it('openSettings() opens the panel when requiresApiKey is false but a settingsStore exists', () => {
+    const input = new ChatInput(container, { settingsStore: createSettingsStore('t-settings') })
     input.openSettings()
+    expect(container.querySelector('[data-agent-overlay-settings]')).not.toBeNull()
+    input.destroy()
+    localStorage.clear()
+  })
+
+  it('does not auto-open settings when requiresApiKey is false and no key', () => {
+    const input = new ChatInput(container, { settingsStore: createSettingsStore('t-settings') })
     expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
     input.destroy()
+    localStorage.clear()
   })
 
   // ── getSelectedPresets ─────────────────────────────────────────────────────
@@ -223,9 +239,9 @@ describe('ChatInput', () => {
     input.destroy()
   })
 
-  it('does not render settings gear when requiresApiKey is false', () => {
+  it('renders settings gear even when requiresApiKey is false', () => {
     const input = new ChatInput(container)
-    expect(container.querySelector('[data-agent-overlay-settings-trigger]')).toBeNull()
+    expect(container.querySelector('[data-agent-overlay-settings-trigger]')).not.toBeNull()
     input.destroy()
   })
 })

@@ -1,5 +1,6 @@
 // src/core/ui/chat-input.ts
 import type { ModelOption, AnalysisPreset } from '../types'
+import type { SettingsStore } from '../settings-store'
 import { Dropdown } from './dropdown'
 import { DropdownManager } from './dropdown-manager'
 import { SettingsPanel } from './settings-panel'
@@ -15,6 +16,7 @@ export interface ChatInputOptions {
   readonly presets?: readonly AnalysisPreset[]
   readonly requiresApiKey?: boolean
   readonly apiKeyStorageKey?: string
+  readonly settingsStore?: SettingsStore
 }
 
 export class ChatInput {
@@ -23,6 +25,7 @@ export class ChatInput {
   private readonly presets: readonly AnalysisPreset[]
   private readonly requiresApiKey: boolean
   private readonly apiKeyStorageKey: string | undefined
+  private readonly settingsStore: SettingsStore | undefined
 
   private readonly textarea: HTMLTextAreaElement
   private readonly errorDiv: HTMLElement
@@ -42,6 +45,7 @@ export class ChatInput {
     this.presets = options?.presets ?? []
     this.requiresApiKey = options?.requiresApiKey ?? false
     this.apiKeyStorageKey = options?.apiKeyStorageKey
+    this.settingsStore = options?.settingsStore
     this.dropdownManager = new DropdownManager()
 
     this.textarea = this.buildTextarea()
@@ -105,8 +109,8 @@ export class ChatInput {
     // Initialize submit button state (presets may be pre-selected)
     updateSubmitState()
 
-    // Auto-open settings if BYOK key is missing
-    if (this.settingsPanel && !this.settingsPanel.getApiKey()) {
+    // Auto-open settings only for BYOK when the key is missing
+    if (this.requiresApiKey && this.settingsPanel && !this.settingsPanel.getApiKey()) {
       this.settingsPanel.open()
       this.settingsPanel.showMessage('Please set your API key to get started.')
     }
@@ -157,8 +161,8 @@ export class ChatInput {
       padding: 6px 10px; border-bottom: 1px solid var(--ao-border);
     `
 
-    // Settings gear (far left)
-    if (this.requiresApiKey) {
+    // Settings gear (far left) \u2014 always available
+    {
       const gearBtn = document.createElement('button')
       gearBtn.setAttribute('data-agent-overlay-settings-trigger', '')
       gearBtn.textContent = '\u2699'
@@ -170,6 +174,8 @@ export class ChatInput {
 
       this.settingsPanel = new SettingsPanel(this.containerEl, {
         storageKey: this.apiKeyStorageKey,
+        settingsStore: this.settingsStore,
+        requiresApiKey: this.requiresApiKey,
         manager: this.dropdownManager,
       })
       this.dropdownManager.register(this.settingsPanel)
