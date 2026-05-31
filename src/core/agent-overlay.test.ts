@@ -674,6 +674,29 @@ describe('createAgentOverlay', () => {
       agent.destroy()
       localStorage.clear()
     })
+
+    it('folds stored settings into analyzeOptions', async () => {
+      localStorage.setItem(
+        'agent-overlay-settings',
+        JSON.stringify({ systemPrompt: 'P', temperature: 0.4, maxTokens: 500 }),
+      )
+      const { chart, el } = createMockChart()
+      const series = createMockSeries()
+      const provider: LLMProvider = {
+        analyze: vi.fn().mockResolvedValue({ explanation: 'test' }),
+      }
+      const agent = createAgentOverlay(chart as never, series as never, { provider })
+      selectAndSubmit(agent, el, 'test question')
+      await vi.waitFor(() => {
+        expect(provider.analyze).toHaveBeenCalled()
+      })
+      const options = (provider.analyze as any).mock.calls[0][3]
+      expect(options.systemPrompt).toBe('P')
+      expect(options.temperature).toBe(0.4)
+      expect(options.maxTokens).toBe(500)
+      agent.destroy()
+      localStorage.clear()
+    })
   })
 
   describe('History navigation', () => {
