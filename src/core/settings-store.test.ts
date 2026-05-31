@@ -41,6 +41,12 @@ describe('createSettingsStore', () => {
     expect(store.get().temperature).toBe(0)
   })
 
+  it('set() keeps temperature 0 (not dropped as falsy)', () => {
+    const store = createSettingsStore(KEY)
+    store.set({ temperature: 0 })
+    expect(store.get().temperature).toBe(0)
+  })
+
   it('set() coerces maxTokens to a positive integer and ignores invalid', () => {
     const store = createSettingsStore(KEY)
     store.set({ maxTokens: 100.7 })
