@@ -77,6 +77,9 @@ export interface AnalyzeOptions {
   readonly apiKey?: string
   readonly headers?: Readonly<Record<string, string>>
   readonly chatMessages?: readonly ChatMessage[]
+  readonly systemPrompt?: string // persona override (replaces the base persona, does not append)
+  readonly temperature?: number // runtime sampling override
+  readonly maxTokens?: number // runtime response-length override
 }
 
 export interface ChatMessage {
@@ -161,6 +164,7 @@ export interface AgentOverlayOptions {
   readonly presets?: readonly AnalysisPreset[]
   readonly promptBuilder?: PromptBuilder
   readonly apiKeyStorageKey?: string
+  readonly settingsStorageKey?: string // localStorage key for OverlaySettings (default 'agent-overlay-settings')
 }
 
 // --- Event Map ---
