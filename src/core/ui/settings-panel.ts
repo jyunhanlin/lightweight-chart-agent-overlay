@@ -10,6 +10,8 @@ interface SettingsPanelOptions {
   readonly storageKey?: string
   readonly settingsStore?: SettingsStore
   readonly requiresApiKey?: boolean
+  /** Element the panel positions itself against (e.g. the gear button). */
+  readonly anchorEl?: HTMLElement
   readonly manager?: { closeAllExcept(keep: SettingsPanel): void }
 }
 
@@ -18,6 +20,7 @@ export class SettingsPanel {
   private readonly storageKey: string
   private readonly settingsStore: SettingsStore | undefined
   private readonly showApiKey: boolean
+  private readonly anchorEl: HTMLElement | undefined
   private readonly manager: SettingsPanelOptions['manager']
   private panelEl: HTMLElement | null = null
 
@@ -28,6 +31,7 @@ export class SettingsPanel {
     this.storageKey = options?.storageKey ?? DEFAULT_STORAGE_KEY
     this.settingsStore = options?.settingsStore
     this.showApiKey = options?.requiresApiKey !== false
+    this.anchorEl = options?.anchorEl
     this.manager = options?.manager
   }
 
@@ -196,7 +200,38 @@ export class SettingsPanel {
 
     this.container.appendChild(panel)
     this.panelEl = panel
+    this.positionPanel(panel)
     apiKeyInput?.focus()
+  }
+
+  /**
+   * Position the panel against the anchor (gear button), flipping upward when
+   * there isn't room below — mirrors the Dropdown positioning so both popovers
+   * behave consistently. No-op without an anchor (panel keeps static placement).
+   */
+  private positionPanel(panel: HTMLElement): void {
+    const anchor = this.anchorEl
+    if (!anchor) return
+
+    const btnRect = anchor.getBoundingClientRect()
+    const parentRect = this.container.getBoundingClientRect()
+    const offsetLeft = btnRect.left - parentRect.left
+
+    // Measure height before deciding direction (panel is already in the DOM).
+    panel.style.visibility = 'hidden'
+    const panelHeight = panel.offsetHeight
+    const spaceBelow = window.innerHeight - btnRect.bottom
+    const openUpward = spaceBelow < panelHeight + 8
+
+    if (openUpward) {
+      panel.style.bottom = `${parentRect.bottom - btnRect.top}px`
+      panel.style.top = ''
+    } else {
+      panel.style.top = `${btnRect.bottom - parentRect.top}px`
+      panel.style.bottom = ''
+    }
+    panel.style.left = `${offsetLeft}px`
+    panel.style.visibility = ''
   }
 
   private fieldControlCss(extra = ''): string {

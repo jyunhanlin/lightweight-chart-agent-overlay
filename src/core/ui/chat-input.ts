@@ -176,6 +176,7 @@ export class ChatInput {
         storageKey: this.apiKeyStorageKey,
         settingsStore: this.settingsStore,
         requiresApiKey: this.requiresApiKey,
+        anchorEl: gearBtn,
         manager: this.dropdownManager,
       })
       this.dropdownManager.register(this.settingsPanel)

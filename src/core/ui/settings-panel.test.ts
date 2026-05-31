@@ -320,4 +320,43 @@ describe('SettingsPanel — settings fields', () => {
     expect(saveBtn.disabled).toBe(false)
     panel.destroy()
   })
+
+  it('positions the panel against its anchor, flipping upward near the viewport bottom', () => {
+    const anchor = document.createElement('button')
+    container.appendChild(anchor)
+    // Anchor sits at the bottom of the viewport → no room below → open upward.
+    anchor.getBoundingClientRect = () =>
+      ({
+        top: 760,
+        bottom: 780,
+        left: 40,
+        right: 60,
+        width: 20,
+        height: 20,
+        x: 40,
+        y: 760,
+      }) as DOMRect
+    container.getBoundingClientRect = () =>
+      ({
+        top: 400,
+        bottom: 790,
+        left: 0,
+        right: 460,
+        width: 460,
+        height: 390,
+        x: 0,
+        y: 400,
+      }) as DOMRect
+    const panel = new SettingsPanel(container, {
+      settingsStore: createSettingsStore(SETTINGS_KEY),
+      requiresApiKey: false,
+      anchorEl: anchor,
+    })
+    panel.open()
+    const el = container.querySelector('[data-agent-overlay-settings]') as HTMLElement
+    expect(el.style.bottom).not.toBe('') // upward → bottom anchored at the gear's top
+    expect(el.style.top).toBe('') // downward offset cleared
+    expect(el.style.left).toBe('40px') // anchor left, relative to container
+    panel.destroy()
+  })
 })
