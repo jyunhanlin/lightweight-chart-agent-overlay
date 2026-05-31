@@ -55,6 +55,10 @@ const provider = createAnthropicProvider({
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
   ],
   maxTokens: 8192,                    // optional, default: 8192
+  temperature: 0.7,                   // optional, 0–1
+  systemPrompt: 'You are a ...',      // optional: analyst persona (default: DEFAULT_PERSONA)
+                                      // the JSON overlay contract is auto-injected by the library
+  injectOverlayContract: true,        // optional, default: true — appends OVERLAY_CONTRACT to systemPrompt
 })
 ```
 
@@ -68,6 +72,10 @@ const provider = createOpenAIProvider({
   availableModels: [{ id: 'gpt-4o-mini', label: 'GPT-4o Mini' }],
   baseURL: 'https://api.openai.com/v1/chat/completions', // customizable
   maxTokens: 8192,                     // optional, default: 8192
+  temperature: 0.7,                    // optional, 0–1
+  systemPrompt: 'You are a ...',       // optional: analyst persona (default: DEFAULT_PERSONA)
+                                       // the JSON overlay contract is auto-injected by the library
+  injectOverlayContract: true,         // optional, default: true — appends OVERLAY_CONTRACT to systemPrompt
 })
 ```
 
@@ -143,6 +151,7 @@ createAgentOverlay(chart, series, {
   promptBuilder: defaultPromptBuilder, // optional: custom prompt construction
   dataAccessor: (range) => data,      // optional: custom data source
   apiKeyStorageKey: 'my-app-key',    // optional: localStorage key for BYOK
+  settingsStorageKey: 'my-app-settings', // optional: localStorage key for runtime settings (default: 'agent-overlay-settings')
 })
 ```
 
@@ -154,6 +163,43 @@ createAgentOverlay(chart, series, {
 | Fundamental | Macro context, news | explanation only |
 | Smart Money | Volume patterns, institutional behavior | markers |
 | Sentiment | Market sentiment from price action | explanation only |
+
+### Settings (runtime configuration)
+
+End-users can override three fields at runtime via the settings gear in the chat panel toolbar — no page reload required:
+
+| Field | Description |
+|-------|-------------|
+| System prompt | Analyst persona (overrides the provider-level `systemPrompt`; the JSON overlay contract is always appended by the library) |
+| Temperature | Sampling temperature, 0–1 |
+| Max tokens | Maximum tokens in the response |
+
+**Precedence chain:** runtime user override (localStorage) → provider build-time option → built-in default.
+
+Runtime settings are persisted to `localStorage` under the key `agent-overlay-settings` (override with `settingsStorageKey`). The settings gear is always visible in the chat toolbar — not only in BYOK mode.
+
+### Migration note (v0.3 → v0.4)
+
+The `systemPrompt` provider option now means the **analyst persona only**. The JSON overlay contract (the `\`\`\`json` output format) is appended automatically by the library (`injectOverlayContract: true` by default).
+
+If you previously passed a full prompt that already contained your own JSON contract:
+
+```ts
+// Before — full prompt including contract
+createAnthropicProvider({ systemPrompt: '...persona...\n\nAfter your analysis, end with ```json...' })
+
+// After — pass only the persona; the library appends the contract
+createAnthropicProvider({ systemPrompt: '...persona...' })
+
+// Or, to disable auto-injection and keep full control:
+createAnthropicProvider({ systemPrompt: '...full prompt...', injectOverlayContract: false })
+```
+
+The exported constants `DEFAULT_PERSONA`, `OVERLAY_CONTRACT`, and `DEFAULT_SYSTEM_PROMPT` are available for reference or composition:
+
+```ts
+import { DEFAULT_PERSONA, OVERLAY_CONTRACT, DEFAULT_SYSTEM_PROMPT } from 'lightweight-chart-agent-overlay'
+```
 
 ## Events
 

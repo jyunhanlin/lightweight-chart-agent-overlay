@@ -209,6 +209,78 @@ describe('createOpenAIProvider', () => {
     expect(body.messages[3].content).toBe('follow up')
     expect(body.messages).toHaveLength(4)
   })
+
+  // ── Settings: persona / contract / sampling ──
+  function mockOnceOAI() {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: 'x' } }] }),
+    })
+  }
+  function lastBodyOAI() {
+    return JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+  }
+  function systemContent() {
+    return lastBodyOAI().messages[0].content as string
+  }
+
+  it('composes persona + overlay contract by default', async () => {
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS }).analyze(MOCK_CONTEXT, 'q')
+    expect(systemContent()).toContain('financial chart analyst')
+    expect(systemContent()).toContain('```json')
+  })
+
+  it('omits the overlay contract when injectOverlayContract is false', async () => {
+    mockOnceOAI()
+    await createOpenAIProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      injectOverlayContract: false,
+    }).analyze(MOCK_CONTEXT, 'q')
+    expect(systemContent()).not.toContain('```json')
+  })
+
+  it('uses analyzeOptions.systemPrompt as a persona override but keeps the contract', async () => {
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS }).analyze(
+      MOCK_CONTEXT,
+      'q',
+      undefined,
+      { systemPrompt: 'CUSTOM PERSONA' },
+    )
+    expect(systemContent()).toContain('CUSTOM PERSONA')
+    expect(systemContent()).not.toContain('financial chart analyst')
+    expect(systemContent()).toContain('```json')
+  })
+
+  it('includes temperature only when set', async () => {
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS }).analyze(MOCK_CONTEXT, 'q')
+    expect(lastBodyOAI().temperature).toBeUndefined()
+
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS, temperature: 0.2 }).analyze(
+      MOCK_CONTEXT,
+      'q',
+    )
+    expect(lastBodyOAI().temperature).toBe(0.2)
+  })
+
+  it('maxTokens precedence: analyzeOptions > construction > 8192', async () => {
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS }).analyze(MOCK_CONTEXT, 'q')
+    expect(lastBodyOAI().max_tokens).toBe(8192)
+
+    mockOnceOAI()
+    await createOpenAIProvider({ apiKey: 'k', availableModels: MODELS, maxTokens: 700 }).analyze(
+      MOCK_CONTEXT,
+      'q',
+      undefined,
+      { maxTokens: 250 },
+    )
+    expect(lastBodyOAI().max_tokens).toBe(250)
+  })
 })
 
 describe('analyzeStream', () => {

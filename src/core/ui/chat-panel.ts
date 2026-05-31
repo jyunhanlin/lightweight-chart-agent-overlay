@@ -1,5 +1,6 @@
 // src/core/ui/chat-panel.ts
 import type { ChatTurn, AnalysisPreset, ModelOption } from '../types'
+import type { SettingsStore } from '../settings-store'
 import { clampToViewport, type UIPosition } from './calculate-position'
 import { makeDraggable, type DraggableHandle } from './make-draggable'
 import { makeResizable, type ResizableHandle } from './make-resizable'
@@ -65,6 +66,7 @@ export interface ChatPanelOptions {
   readonly presets?: readonly AnalysisPreset[]
   readonly requiresApiKey?: boolean
   readonly apiKeyStorageKey?: string
+  readonly settingsStore?: SettingsStore
 }
 
 export interface ChatPanelShowOptions {
@@ -510,6 +512,7 @@ export class ChatPanel {
       presets: this.options.presets,
       requiresApiKey: this.options.requiresApiKey,
       apiKeyStorageKey: this.options.apiKeyStorageKey,
+      settingsStore: this.options.settingsStore,
     })
     chatInput.onSubmit = (text) => this.onSubmit?.(text)
     this.chatInput = chatInput

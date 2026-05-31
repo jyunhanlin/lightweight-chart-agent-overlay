@@ -232,6 +232,104 @@ describe('createAnthropicProvider', () => {
     expect(body.messages[0].content).toBe('first question')
     expect(body.messages[2].content).toBe('follow up')
   })
+
+  // ── Settings: persona / contract / sampling ──
+  function mockOnce() {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({ content: [{ text: 'x' }] }) })
+  }
+  function lastBody() {
+    return JSON.parse((globalThis.fetch as any).mock.calls[0][1].body)
+  }
+
+  it('composes persona + overlay contract by default', async () => {
+    mockOnce()
+    const provider = createAnthropicProvider({ apiKey: 'k', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'q')
+    expect(lastBody().system).toContain('financial chart analyst')
+    expect(lastBody().system).toContain('```json')
+  })
+
+  it('omits the overlay contract when injectOverlayContract is false', async () => {
+    mockOnce()
+    const provider = createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      injectOverlayContract: false,
+    })
+    await provider.analyze(MOCK_CONTEXT, 'q')
+    expect(lastBody().system).not.toContain('```json')
+  })
+
+  it('uses analyzeOptions.systemPrompt as a persona override but keeps the contract', async () => {
+    mockOnce()
+    const provider = createAnthropicProvider({ apiKey: 'k', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'q', undefined, { systemPrompt: 'CUSTOM PERSONA' })
+    const sys = lastBody().system
+    expect(sys).toContain('CUSTOM PERSONA')
+    expect(sys).not.toContain('financial chart analyst')
+    expect(sys).toContain('```json')
+  })
+
+  it('appends additionalSystemPrompt between persona and contract', async () => {
+    mockOnce()
+    const provider = createAnthropicProvider({ apiKey: 'k', availableModels: MODELS })
+    await provider.analyze(MOCK_CONTEXT, 'q', undefined, { additionalSystemPrompt: 'EXTRA RULE' })
+    const sys: string = lastBody().system
+    expect(sys.indexOf('EXTRA RULE')).toBeGreaterThan(sys.indexOf('financial chart analyst'))
+    expect(sys.indexOf('EXTRA RULE')).toBeLessThan(sys.indexOf('```json'))
+  })
+
+  it('includes temperature only when set (construction or analyzeOptions)', async () => {
+    mockOnce()
+    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(
+      MOCK_CONTEXT,
+      'q',
+    )
+    expect(lastBody().temperature).toBeUndefined()
+
+    mockOnce()
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      temperature: 0.3,
+    }).analyze(MOCK_CONTEXT, 'q')
+    expect(lastBody().temperature).toBe(0.3)
+
+    mockOnce()
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      temperature: 0.3,
+    }).analyze(MOCK_CONTEXT, 'q', undefined, { temperature: 0.9 })
+    expect(lastBody().temperature).toBe(0.9)
+  })
+
+  it('maxTokens precedence: analyzeOptions > construction > 8192', async () => {
+    mockOnce()
+    await createAnthropicProvider({ apiKey: 'k', availableModels: MODELS }).analyze(
+      MOCK_CONTEXT,
+      'q',
+    )
+    expect(lastBody().max_tokens).toBe(8192)
+
+    mockOnce()
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      maxTokens: 1000,
+    }).analyze(MOCK_CONTEXT, 'q')
+    expect(lastBody().max_tokens).toBe(1000)
+
+    mockOnce()
+    await createAnthropicProvider({
+      apiKey: 'k',
+      availableModels: MODELS,
+      maxTokens: 1000,
+    }).analyze(MOCK_CONTEXT, 'q', undefined, { maxTokens: 500 })
+    expect(lastBody().max_tokens).toBe(500)
+  })
 })
 
 describe('analyzeStream', () => {

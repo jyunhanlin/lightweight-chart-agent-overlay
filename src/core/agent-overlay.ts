@@ -24,6 +24,7 @@ import { calculateSmartPosition } from './ui/calculate-position'
 import { applyThemeVars } from './ui/theme'
 import { DEFAULT_PRESETS } from './default-presets'
 import { createHistoryStore } from './history-store'
+import { createSettingsStore } from './settings-store'
 import { HistoryButton } from './ui/history-button'
 import { parseStreamedResponse } from '../providers/parse-response'
 
@@ -75,6 +76,7 @@ export function createAgentOverlay(
   const rangeSelector = new RangeSelector(chart as never, series as never)
   const renderer = new OverlayRenderer(series as never)
   const historyStore = createHistoryStore()
+  const settingsStore = createSettingsStore(options.settingsStorageKey)
   const historyButton = new HistoryButton(chartEl)
   historyButton.setCount(0)
 
@@ -83,6 +85,7 @@ export function createAgentOverlay(
     presets,
     requiresApiKey: options.provider.requiresApiKey,
     apiKeyStorageKey: options.apiKeyStorageKey,
+    settingsStore,
   })
 
   const COMPACT_BREAKPOINT = 480
@@ -185,12 +188,16 @@ export function createAgentOverlay(
       const selectedPresets = chatPanel.getSelectedPresets()
       const chatMessages = buildChatMessages(context, currentTurns, userMessage)
 
+      const settings = settingsStore.get()
       const analyzeOptions: AnalyzeOptions = {
         model: selectedModel,
         additionalSystemPrompt: additionalSystemPrompt || undefined,
         apiKey: storedApiKey,
         headers: resolvedHeaders,
         chatMessages,
+        systemPrompt: settings.systemPrompt,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
       }
 
       let rawResponse = ''

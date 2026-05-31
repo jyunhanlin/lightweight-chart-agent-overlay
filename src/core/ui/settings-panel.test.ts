@@ -1,5 +1,7 @@
 // src/core/ui/settings-panel.test.ts
 import { SettingsPanel } from './settings-panel'
+import { createSettingsStore } from '../settings-store'
+import { DEFAULT_PERSONA } from '../../providers/default-system-prompt'
 
 const STORAGE_KEY = 'test-api-key'
 
@@ -85,16 +87,6 @@ describe('SettingsPanel', () => {
     ) as HTMLButtonElement
     saveBtn.click()
     expect(onSave).toHaveBeenCalled()
-    panel.destroy()
-  })
-
-  it('Save button is disabled when input is empty', () => {
-    const panel = new SettingsPanel(container, { storageKey: STORAGE_KEY })
-    panel.open()
-    const saveBtn = container.querySelector(
-      '[data-agent-overlay-settings-save]',
-    ) as HTMLButtonElement
-    expect(saveBtn.disabled).toBe(true)
     panel.destroy()
   })
 
@@ -211,5 +203,160 @@ describe('SettingsPanel', () => {
     panel.destroy()
     expect(container.querySelector('[data-agent-overlay-settings]')).toBeNull()
     expect(panel.onSave).toBeNull()
+  })
+})
+
+describe('SettingsPanel — settings fields', () => {
+  let container: HTMLElement
+  const SETTINGS_KEY = 'test-settings'
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    localStorage.clear()
+  })
+  afterEach(() => {
+    container.remove()
+    localStorage.clear()
+  })
+
+  function open(requiresApiKey?: boolean) {
+    const store = createSettingsStore(SETTINGS_KEY)
+    const panel = new SettingsPanel(container, {
+      storageKey: 'test-api-key',
+      settingsStore: store,
+      requiresApiKey,
+    })
+    panel.open()
+    return { panel, store }
+  }
+
+  it('renders system prompt, temperature, and max tokens fields', () => {
+    const { panel } = open(true)
+    expect(container.querySelector('[data-agent-overlay-settings-system-prompt]')).not.toBeNull()
+    expect(container.querySelector('[data-agent-overlay-settings-temperature]')).not.toBeNull()
+    expect(container.querySelector('[data-agent-overlay-settings-max-tokens]')).not.toBeNull()
+    panel.destroy()
+  })
+
+  it('system prompt textarea placeholder is DEFAULT_PERSONA', () => {
+    const { panel } = open(true)
+    const ta = container.querySelector(
+      '[data-agent-overlay-settings-system-prompt]',
+    ) as HTMLTextAreaElement
+    expect(ta.placeholder).toBe(DEFAULT_PERSONA)
+    panel.destroy()
+  })
+
+  it('hides API key field when requiresApiKey is false', () => {
+    const { panel } = open(false)
+    expect(container.querySelector('input[type="password"]')).toBeNull()
+    expect(container.querySelector('[data-agent-overlay-settings-system-prompt]')).not.toBeNull()
+    panel.destroy()
+  })
+
+  it('Save persists settings fields to the store', () => {
+    const { panel, store } = open(true)
+    ;(
+      container.querySelector('[data-agent-overlay-settings-system-prompt]') as HTMLTextAreaElement
+    ).value = 'My persona'
+    ;(
+      container.querySelector('[data-agent-overlay-settings-temperature]') as HTMLInputElement
+    ).value = '0.4'
+    ;(
+      container.querySelector('[data-agent-overlay-settings-max-tokens]') as HTMLInputElement
+    ).value = '1234'
+    ;(container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement).click()
+    expect(store.get()).toEqual({ systemPrompt: 'My persona', temperature: 0.4, maxTokens: 1234 })
+    panel.destroy()
+  })
+
+  it('emptying a field and saving clears it from the store', () => {
+    const store = createSettingsStore(SETTINGS_KEY)
+    store.set({ temperature: 0.7 })
+    const panel = new SettingsPanel(container, {
+      storageKey: 'test-api-key',
+      settingsStore: store,
+      requiresApiKey: true,
+    })
+    panel.open()
+    const temp = container.querySelector(
+      '[data-agent-overlay-settings-temperature]',
+    ) as HTMLInputElement
+    expect(temp.value).toBe('0.7')
+    temp.value = ''
+    ;(container.querySelector('[data-agent-overlay-settings-save]') as HTMLButtonElement).click()
+    expect(store.get().temperature).toBeUndefined()
+    panel.destroy()
+  })
+
+  it('Reset clears a single field and its input', () => {
+    const store = createSettingsStore(SETTINGS_KEY)
+    store.set({ temperature: 0.9 })
+    const panel = new SettingsPanel(container, {
+      storageKey: 'test-api-key',
+      settingsStore: store,
+      requiresApiKey: true,
+    })
+    panel.open()
+    ;(
+      container.querySelector(
+        '[data-agent-overlay-settings-reset="temperature"]',
+      ) as HTMLButtonElement
+    ).click()
+    expect(store.get().temperature).toBeUndefined()
+    expect(
+      (container.querySelector('[data-agent-overlay-settings-temperature]') as HTMLInputElement)
+        .value,
+    ).toBe('')
+    panel.destroy()
+  })
+
+  it('Save is enabled even when the API key input is empty', () => {
+    const { panel } = open(true)
+    const saveBtn = container.querySelector(
+      '[data-agent-overlay-settings-save]',
+    ) as HTMLButtonElement
+    expect(saveBtn.disabled).toBe(false)
+    panel.destroy()
+  })
+
+  it('positions the panel against its anchor, flipping upward near the viewport bottom', () => {
+    const anchor = document.createElement('button')
+    container.appendChild(anchor)
+    // Anchor sits at the bottom of the viewport → no room below → open upward.
+    anchor.getBoundingClientRect = () =>
+      ({
+        top: 760,
+        bottom: 780,
+        left: 40,
+        right: 60,
+        width: 20,
+        height: 20,
+        x: 40,
+        y: 760,
+      }) as DOMRect
+    container.getBoundingClientRect = () =>
+      ({
+        top: 400,
+        bottom: 790,
+        left: 0,
+        right: 460,
+        width: 460,
+        height: 390,
+        x: 0,
+        y: 400,
+      }) as DOMRect
+    const panel = new SettingsPanel(container, {
+      settingsStore: createSettingsStore(SETTINGS_KEY),
+      requiresApiKey: false,
+      anchorEl: anchor,
+    })
+    panel.open()
+    const el = container.querySelector('[data-agent-overlay-settings]') as HTMLElement
+    expect(el.style.bottom).not.toBe('') // upward → bottom anchored at the gear's top
+    expect(el.style.top).toBe('') // downward offset cleared
+    expect(el.style.left).toBe('40px') // anchor left, relative to container
+    panel.destroy()
   })
 })
