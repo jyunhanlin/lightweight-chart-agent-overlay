@@ -38,6 +38,36 @@ async function resolveHeaders(provider: {
   return { ...provider.headers }
 }
 
+function buildChatMessages(
+  context: ChartContext,
+  turns: readonly ChatTurn[],
+  currentUserMessage: string,
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i]
+    if (i === 0) {
+      messages.push({
+        role: 'user',
+        content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${turn.userMessage}`,
+      })
+    } else {
+      messages.push({ role: 'user', content: turn.userMessage })
+    }
+    messages.push({ role: 'assistant', content: turn.rawResponse })
+  }
+  // Current question
+  if (turns.length === 0) {
+    messages.push({
+      role: 'user',
+      content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${currentUserMessage}`,
+    })
+  } else {
+    messages.push({ role: 'user', content: currentUserMessage })
+  }
+  return messages
+}
+
 interface ChartLike {
   timeScale(): {
     coordinateToTime(x: number): unknown
@@ -130,36 +160,6 @@ export function createAgentOverlay(
   function cancelInFlight(): void {
     abortController?.abort()
     abortController = null
-  }
-
-  function buildChatMessages(
-    context: ChartContext,
-    turns: readonly ChatTurn[],
-    currentUserMessage: string,
-  ): ChatMessage[] {
-    const messages: ChatMessage[] = []
-    for (let i = 0; i < turns.length; i++) {
-      const turn = turns[i]
-      if (i === 0) {
-        messages.push({
-          role: 'user',
-          content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${turn.userMessage}`,
-        })
-      } else {
-        messages.push({ role: 'user', content: turn.userMessage })
-      }
-      messages.push({ role: 'assistant', content: turn.rawResponse })
-    }
-    // Current question
-    if (turns.length === 0) {
-      messages.push({
-        role: 'user',
-        content: `Chart data (${context.data.length} candles, from ${context.timeRange.from} to ${context.timeRange.to}):\n${JSON.stringify(context.data)}\n\nUser question: ${currentUserMessage}`,
-      })
-    } else {
-      messages.push({ role: 'user', content: currentUserMessage })
-    }
-    return messages
   }
 
   async function runAnalysis(

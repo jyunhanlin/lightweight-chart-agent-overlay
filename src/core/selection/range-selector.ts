@@ -25,7 +25,7 @@ export class RangeSelector {
   private startTime: TimeValue | null = null
   private lastValidToTime: TimeValue | null = null
   private isDragging = false
-  private _enabled = false
+  private enabledState = false
   private readonly cleanupPointer: () => void
 
   onSelect: ((range: { from: TimeValue; to: TimeValue }) => void) | null = null
@@ -39,7 +39,7 @@ export class RangeSelector {
     series.attachPrimitive(this.primitive)
 
     const onStart = (pos: { clientX: number; clientY: number }): void | false => {
-      if (!this._enabled) {
+      if (!this.enabledState) {
         if (this.primitive.getRange()) {
           this.primitive.clearRange()
           this.onDismiss?.()
@@ -93,11 +93,11 @@ export class RangeSelector {
   }
 
   get enabled(): boolean {
-    return this._enabled
+    return this.enabledState
   }
 
   setEnabled(enabled: boolean): void {
-    this._enabled = enabled
+    this.enabledState = enabled
     this.chart.applyOptions({
       handleScroll: !enabled,
       handleScale: !enabled,
