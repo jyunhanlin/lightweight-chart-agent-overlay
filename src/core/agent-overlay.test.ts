@@ -1232,7 +1232,6 @@ describe('createAgentOverlay', () => {
   })
 
   describe('responsive compact mode', () => {
-    let _resizeCallback: ResizeObserverCallback
     let mockObserver: {
       observe: ReturnType<typeof vi.fn>
       disconnect: ReturnType<typeof vi.fn>
@@ -1245,9 +1244,6 @@ describe('createAgentOverlay', () => {
       vi.stubGlobal(
         'ResizeObserver',
         class {
-          constructor(cb: ResizeObserverCallback) {
-            _resizeCallback = cb
-          }
           observe = capturedMockObserver.observe
           disconnect = capturedMockObserver.disconnect
           unobserve = capturedMockObserver.unobserve

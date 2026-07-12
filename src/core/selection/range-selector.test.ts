@@ -65,8 +65,9 @@ describe('RangeSelector', () => {
   it('creates and attaches SelectionPrimitive on init', () => {
     const chart = createMockChart()
     const series = createMockSeries()
-    const _selector = new RangeSelector(chart as never, series as never)
+    const selector = new RangeSelector(chart as never, series as never)
     expect(series.attachPrimitive).toHaveBeenCalledOnce()
+    expect(selector.getRange()).toBeNull()
   })
 
   it('emits onSelect when enabled and dragged', () => {
