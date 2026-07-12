@@ -1,5 +1,11 @@
 # lightweight-chart-agent-overlay
 
+## 0.4.1
+
+### Patch Changes
+
+- Update runtime dependencies: marked 17 → 18 (block-token blank-line trim, no impact on `marked.parse` usage), dompurify 3.3.3 → 3.4.11. Toolchain moved to TypeScript 7 / tsdown 0.22 / oxlint 1.73 with no change to the published API.
+
 ## 0.4.0
 
 ### Minor Changes
